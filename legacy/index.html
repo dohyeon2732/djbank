@@ -1,0 +1,680 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DJ Bank GEO 관제센터</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+  [hidden] { display: none !important; }
+  img { max-width: 100%; }
+  /* 디자인 토큰 — 라이트 기본, 다크 자동 (레이아웃: 좌측 정렬 단일 컬럼, 악센트는 DJ 시리즈 1색) */
+  :root {
+    --color-bg: #faf9f7; --color-panel: #ffffff; --color-fg: #1c1b1a; --color-fg-muted: #6e6a64;
+    --color-border-line: #e5e1da; --color-ok: #1a7f4e; --color-warn: #b06000; --color-bad: #c23934;
+    --s0: #2f6fed; --s1: #5b8def; --s2: #8aa9d6; --s3: #b7c7e3; --s4: #64748b; --s5: #94a3b8; --s6: #cbd5e1; --s7: #e2e8f0;
+    --cds-radius: 10px; --cds-border: #c9c4bb;
+    --cds-surface-popover: #ffffff; --cds-shadow-popover: 0 8px 24px rgba(28,27,26,.14);
+    --cds-chart-grid: #ece8e1; --cds-chart-axis: #8d8880; --cds-chart-muted: #cfcac2;
+    --cds-pad-xs: 4px; --cds-pad-sm: 8px; --cds-pad-md: 14px; --cds-pad-lg: 20px;
+    --cds-gap-xs: 6px; --cds-gap-sm: 10px; --cds-gap-md: 16px; --cds-gap-lg: 24px;
+    --cds-font-size-caption: 12.5px; --cds-font-size-body: 14px; --cds-font-size-heading: 16px; --cds-font-size-title: 22px;
+    --cds-font-weight-medium: 600; --cds-dur-slow: .3s;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --color-bg: #191817; --color-panel: #211f1e; --color-fg: #ece9e4; --color-fg-muted: #9b968e;
+    --color-border-line: #363330; --color-ok: #4cc38a; --color-warn: #e0a63f; --color-bad: #e5655f;
+    --s0: #6c9bff; --s1: #4f7fe0; --s2: #3d5f9e; --s3: #2f4674; --s4: #8b99ad; --s5: #6b7687; --s6: #4a5260; --s7: #333a45;
+    --cds-border: #55504a; --cds-surface-popover: #2a2827; --cds-shadow-popover: 0 8px 24px rgba(0,0,0,.5);
+    --cds-chart-grid: #2e2c2a; --cds-chart-axis: #7d786f; --cds-chart-muted: #4a4641;
+    color-scheme: dark;
+  } }
+  body { margin: 0; background: var(--color-bg); color: var(--color-fg);
+    padding: 24px max(16px, env(safe-area-inset-left, 0px)) 48px max(16px, env(safe-area-inset-right, 0px)); }
+
+    .geo { --geo-font: 'Pretendard Variable', Pretendard, -apple-system, 'Noto Sans KR', 'Malgun Gothic', sans-serif; display: flex; flex-direction: column; gap: var(--cds-gap-lg); font-family: var(--geo-font); max-width: 72rem; margin-inline: auto; }
+  .geo h1 { font-family: var(--geo-font); font-weight: 650; font-size: calc(var(--cds-font-size-title) * 1.15); margin: 0; }
+  .geo-chip { display: inline-block; padding: 2px 10px; border: 1px solid var(--color-border-line); border-radius: 999px; font-size: var(--cds-font-size-caption); color: var(--color-warn); margin-left: 10px; vertical-align: 3px; }
+  .geo-lede { margin: 6px 0 0; color: var(--color-fg-muted); max-width: 46rem; }
+  .geo-lede b { color: var(--color-fg); font-variant-numeric: tabular-nums; }
+
+  .geo-nav { display: flex; gap: 6px; border-bottom: 1px solid var(--color-border-line); }
+  .geo-nav button { font: inherit; font-size: var(--cds-font-size-body); color: var(--color-fg-muted); background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 12px; cursor: pointer; }
+  .geo-nav button[aria-current="true"] { color: var(--color-fg); border-bottom-color: var(--color-fg); font-weight: var(--cds-font-weight-medium); }
+  .geo-nav button:focus-visible { outline: 2px solid var(--cds-border); outline-offset: 2px; border-radius: 4px; }
+
+  .geo-card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); }
+  .geo-card h2 { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); margin: 0 0 2px; }
+  .geo-card .note { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin: 0 0 var(--cds-gap-sm); }
+  .geo-page { display: flex; flex-direction: column; gap: var(--cds-gap-lg); }
+
+  .geo-hero .gap { font-family: var(--geo-font); font-weight: 700; font-size: calc(var(--cds-font-size-title) * 1.6); font-variant-numeric: tabular-nums; }
+  .geo-hero .gap-label { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  .geo-hero-row { display: flex; flex-wrap: wrap; gap: var(--cds-gap-lg); align-items: flex-start; }
+  .geo-hero-row > .chart { flex: 1 1 22rem; min-width: 0; }
+  .geo-hero-row > .gap-box { flex: 0 0 11rem; }
+
+  .geo-band { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr)); background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); overflow: hidden; }
+  .geo-band > div { padding: var(--cds-pad-md) var(--cds-pad-lg); border-left: 1px solid var(--color-border-line); }
+  .geo-band > div:first-child { border-left: 0; }
+  .geo-band .big { font-family: var(--geo-font); font-weight: 650; font-size: calc(var(--cds-font-size-title) * 1.25); font-variant-numeric: tabular-nums; }
+  .geo-band .sub, .geo-band .lab { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  .geo-band .ok { color: var(--color-ok); } .geo-band .bad { color: var(--color-bad); }
+
+  .geo-rail { list-style: none; margin: var(--cds-gap-sm) 0 0; padding: 0; display: flex; flex-wrap: wrap; }
+  .geo-rail li { flex: 1 1 10rem; min-width: 10rem; position: relative; padding: 0 var(--cds-pad-md) var(--cds-pad-sm) 0; }
+  .geo-rail .dot { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--color-border-line); background: var(--color-panel); display: flex; align-items: center; justify-content: center; font-size: var(--cds-font-size-caption); position: relative; z-index: 1; }
+  .geo-rail li::before { content: ""; position: absolute; left: 0; right: 0; top: 11px; height: 1px; background: var(--color-border-line); }
+  .geo-rail li:last-child::before { right: auto; width: 22px; }
+  .geo-rail b { display: block; margin-top: 8px; font-size: var(--cds-font-size-body); font-weight: var(--cds-font-weight-medium); }
+  .geo-rail span { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
+
+  .geo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: var(--cds-gap-md); }
+  .geo table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: var(--cds-font-size-body); }
+  .geo th, .geo td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--color-border-line); }
+  .geo th { color: var(--color-fg-muted); font-weight: var(--cds-font-weight-medium); font-size: var(--cds-font-size-caption); }
+  .geo td.num, .geo th.num { text-align: right; }
+  .geo .chart { position: relative; min-height: 170px; }
+  .geo .tip { position: absolute; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); pointer-events: none; white-space: nowrap; }
+  [data-dash-source-state=error] { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+  [data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
+
+  .geo-filters { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm); align-items: center; }
+  .geo-filters select, .geo-filters input { font: inherit; font-size: var(--cds-font-size-body); color: var(--color-fg); background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: 6px 10px; }
+  .geo-filters input { flex: 1 1 12rem; min-width: 0; }
+  .geo-count { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+
+  .q-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); gap: var(--cds-gap-md); }
+  .q-card { font: inherit; text-align: left; background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-md); cursor: pointer; display: flex; flex-direction: column; gap: 8px; color: var(--color-fg); }
+  .q-card:hover { border-color: var(--cds-border); }
+  .q-card:focus-visible { outline: 2px solid var(--cds-border); outline-offset: 2px; }
+  .q-card .qid { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .q-card .qtext { font-size: var(--cds-font-size-body); line-height: 1.45; }
+  .q-card .qfoot { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  .q-badge { display: inline-block; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--color-border-line); font-size: var(--cds-font-size-caption); }
+  .q-badge.g-content { border-color: transparent; background: color-mix(in srgb, var(--color-ok) 14%, transparent); color: var(--color-ok); }
+  .q-badge.g-control { background: color-mix(in srgb, var(--color-fg-muted) 14%, transparent); }
+  .q-badge.g-unrel { border-color: transparent; background: color-mix(in srgb, var(--color-warn) 16%, transparent); color: var(--color-warn); }
+  .q-dots { letter-spacing: 2px; font-variant-numeric: tabular-nums; }
+
+  .geo-pop { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-start; justify-content: center; padding: 4vh 16px; background: color-mix(in srgb, var(--color-fg) 32%, transparent); }
+  .geo-pop-box { background: var(--color-bg); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); max-width: 44rem; width: 100%; max-height: 88vh; overflow: auto; padding: var(--cds-pad-lg); }
+  .geo-pop-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+  .geo-pop-close { font: inherit; background: none; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); color: var(--color-fg-muted); padding: 4px 12px; cursor: pointer; }
+  .geo-pop-close:focus-visible { outline: 2px solid var(--cds-border); }
+  .qd-meta { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  .qd-q { font-size: var(--cds-font-size-heading); line-height: 1.5; margin: 6px 0; font-weight: var(--cds-font-weight-medium); }
+  .qd-rat { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  .qd-sec { margin-top: var(--cds-gap-md); }
+  .qd-sec h3 { font-size: var(--cds-font-size-body); font-weight: var(--cds-font-weight-medium); margin: 0 0 6px; }
+  .qd-eng { border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-md); margin-bottom: var(--cds-gap-sm); }
+  .qd-eng-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .qd-eng-head b { margin-right: 4px; }
+  .qd-ex { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); line-height: 1.55; margin: 0; white-space: pre-wrap; }
+  .qd-trend { font-variant-numeric: tabular-nums; }
+
+  .wv-matrix-box { max-height: 480px; overflow: auto; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); }
+  .wv-matrix-box table { font-size: var(--cds-font-size-caption); }
+  .wv-matrix-box th { position: sticky; top: 0; background: var(--color-panel); z-index: 1; }
+  .wv-matrix-box td.c { text-align: center; }
+  .wv-hit { color: var(--color-ok); } .wv-miss { color: var(--color-fg-muted); opacity: .55; }
+</style>
+</head>
+<body>
+
+
+<div class="geo">
+  <header>
+    <h1>DJ Bank GEO 관제센터 <span class="geo-chip" data-draw="mode-badge" data-source="runs">—</span></h1>
+    <p class="geo-lede">콘텐츠를 발행한 질문에서 DJ Bank 언급률은
+      <b data-draw="hl-mention" data-source="segments" data-field="mention_p" data-where="wave=MOCK&amp;dim=그룹&amp;name=콘텐츠 대상">—</b>,
+      발행하지 않는 통제 상품에서는
+      <b data-draw="hl-control" data-source="segments" data-field="mention_p" data-where="wave=MOCK&amp;dim=그룹&amp;name=통제 상품">—</b>입니다.
+      이 격차가 회차를 거치며 벌어지면 콘텐츠가 효과를 낸 것입니다.</p>
+  </header>
+
+  <nav class="geo-nav" aria-label="페이지">
+    <button class="geo-tab" data-go="overview" aria-current="true">개요</button>
+    <button class="geo-tab" data-go="questions" aria-current="false">질문셋</button>
+    <button class="geo-tab" data-go="waves" aria-current="false">주차별 현황</button>
+  </nav>
+
+  <section class="geo-page" data-page="overview" id="overview">
+    <div class="geo-card geo-hero">
+      <h2>콘텐츠가 AI 답변을 바꿨는가</h2>
+      <p class="note">막대는 그룹별 언급률, 가는 선은 Wilson 95% 신뢰구간입니다. 판정은 이 한 쌍의 격차 변화로 합니다.</p>
+      <div class="geo-hero-row">
+        <div class="chart" data-draw="chart-groups" data-source="segments"></div>
+        <div class="gap-box">
+          <div class="gap" data-draw="hero-gap" data-source="segments">—</div>
+          <div class="gap-label">콘텐츠 대상과 통제 상품의 언급률 격차. W1 값이 기준점이 되고, 이후 회차에서 이 수가 커지는 만큼이 콘텐츠의 순효과입니다.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="geo-band" aria-label="핵심 지표">
+      <div>
+        <div class="lab">언급률, 콘텐츠 대상</div>
+        <div class="big" data-draw="t-m" data-source="segments" data-field="mention_p" data-where="wave=MOCK&amp;dim=그룹&amp;name=콘텐츠 대상">—</div>
+        <div class="sub" data-draw="t-m-ci" data-source="segments">—</div>
+      </div>
+      <div>
+        <div class="lab">점유율, 8개사 언급 중</div>
+        <div class="big" data-draw="t-s" data-source="segments" data-field="sov" data-where="wave=MOCK&amp;dim=전체&amp;name=전체">—</div>
+        <div class="sub">브랜드 언급 횟수 기준</div>
+      </div>
+      <div>
+        <div class="lab">언급 순위 평균</div>
+        <div class="big" data-draw="t-r" data-source="segments" data-field="rank_avg" data-where="wave=MOCK&amp;dim=전체&amp;name=전체">—</div>
+        <div class="sub">0에서 3, 3이 첫 번째 언급</div>
+      </div>
+      <div>
+        <div class="lab">치명 환각</div>
+        <div class="big" data-draw="t-c" data-source="segments" data-field="critical" data-where="wave=MOCK&amp;dim=전체&amp;name=전체">—</div>
+        <div class="sub">운영주체, 지위, 미존재 상품 오류</div>
+      </div>
+      <div>
+        <div class="lab">자사 인용 점유율</div>
+        <div class="big" data-draw="t-o" data-source="segments" data-field="own_share" data-where="wave=MOCK&amp;dim=전체&amp;name=전체">—</div>
+        <div class="sub">응답이 인용한 출처 중 자사 도메인</div>
+      </div>
+    </div>
+
+    <div class="geo-card">
+      <h2>측정 파이프라인</h2>
+      <p class="note">회차마다 이 여섯 단계가 자동으로 이어집니다. 숫자는 최근 회차의 실행 기록입니다.</p>
+      <ol class="geo-rail">
+        <li><div class="dot">1</div><b>질문셋</b><span><b data-draw="st-q" data-source="runs" data-field="questions" data-row="0">—</b>문항, 문구와 ID 고정</span></li>
+        <li><div class="dot">2</div><b>질의 러너</b><span>엔진 <b data-draw="st-e" data-source="runs" data-field="engines" data-row="0">—</b>종, 질의 <b data-draw="st-p" data-source="runs" data-field="planned" data-row="0">—</b>건</span></li>
+        <li><div class="dot">3</div><b>원본 보관</b><span>응답 전문과 인용 주소, 모델 버전</span></li>
+        <li><div class="dot">4</div><b>채점</b><span><b data-draw="st-j" data-source="runs" data-field="judge_version" data-row="0">—</b>, 20%는 사람이 재채점</span></li>
+        <li><div class="dot">5</div><b>집계</b><span>지표 7종, 신뢰구간, 이중차분</span></li>
+        <li><div class="dot">6</div><b>산출</b><span>이 페이지와 엑셀 리포트 갱신</span></li>
+      </ol>
+      <table style="margin-top: var(--cds-gap-sm)" data-source="runs" data-row-key="wave">
+        <thead><tr><th data-field="wave">회차</th><th data-field="date">실행일</th><th class="num" data-field="planned">계획</th><th class="num" data-field="succeeded">성공</th><th class="num" data-field="failed">실패</th><th data-field="mode">모드</th></tr></thead>
+        <tbody data-draw="runs-body"></tbody>
+      </table>
+    </div>
+
+    <div class="geo-grid">
+      <div class="geo-card">
+        <h2>엔진별 언급률</h2>
+        <p class="note">네 엔진 모두 웹검색을 켠 상태로 묻습니다.</p>
+        <div class="chart" data-draw="chart-engines" data-source="segments"></div>
+      </div>
+      <div class="geo-card">
+        <h2>경쟁 지도</h2>
+        <p class="note">같은 질문에서 AI가 함께 꺼낸 브랜드의 언급 총량입니다. 점유율의 분모가 됩니다.</p>
+        <div class="chart" data-draw="chart-brands" data-source="brands" style="min-height: 240px"></div>
+      </div>
+      <div class="geo-card">
+        <h2>회차 추이</h2>
+        <p class="note">W1 기준점에서 W6, W8로 두 선의 간격이 벌어지는 만큼이 순효과입니다.</p>
+        <div class="chart" data-draw="chart-trend" data-source="segments"></div>
+      </div>
+      <div class="geo-card">
+        <h2>수요 순간별</h2>
+        <p class="note">모으기, 불리기, 빌리기, 쓰기, 지키기 다섯 순간입니다.</p>
+        <table data-source="segments" data-row-key="name">
+          <thead><tr><th data-field="name">수요</th><th class="num" data-field="mention_p">언급률</th><th class="num" data-field="k">언급</th><th class="num" data-field="n">표본</th><th class="num" data-field="sov">점유율</th></tr></thead>
+          <tbody data-draw="tbl-demand"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="geo-card">
+      <h2>상품별</h2>
+      <p class="note">상품 11종을 언급률 순으로 정렬했습니다. 그룹이 콘텐츠 대상인 상품만 발행 효과 판정에 들어갑니다.</p>
+      <table data-source="segments" data-row-key="name">
+        <thead><tr><th data-field="name">상품</th><th data-field="group">그룹</th><th class="num" data-field="mention_p">언급률</th><th class="num" data-field="k">언급</th><th class="num" data-field="n">표본</th></tr></thead>
+        <tbody data-draw="tbl-products"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="geo-page" data-page="questions" id="questions" hidden></section>
+  <section class="geo-page" data-page="waves" id="waves" hidden></section>
+
+  <div class="geo-pop" data-popup hidden>
+    <div class="geo-pop-box" role="dialog" aria-label="질문 상세">
+      <div class="geo-pop-head">
+        <div class="geo-count">질문 상세</div>
+        <button class="geo-pop-close" data-pop-close>닫기</button>
+      </div>
+      <div data-draw="q-detail" data-source="questions responses">—</div>
+    </div>
+  </div>
+</div>
+
+<template id="tpl-questions">
+  <div class="geo-card">
+    <h2>질문셋</h2>
+    <p class="note">측정에 쓰는 고정 질문 전체입니다. 카드를 누르면 회차별 응답과 추이를 볼 수 있습니다. 질문 문구와 ID는 측정 기간 동안 고정됩니다.</p>
+    <div class="geo-filters">
+      <select data-f="group" aria-label="그룹">
+        <option value="">모든 그룹</option>
+        <option>콘텐츠 대상</option>
+        <option>통제 상품</option>
+        <option>미출시 트랙</option>
+      </select>
+      <select data-f="demand" aria-label="수요">
+        <option value="">모든 수요</option>
+        <option>모으기</option>
+        <option>불리기</option>
+        <option>빌리기</option>
+        <option>쓰기</option>
+        <option>지키기</option>
+      </select>
+      <select data-f="cat" aria-label="유형">
+        <option value="">모든 유형</option>
+        <option value="B">B, 카테고리 탐색</option>
+        <option value="C">C, 상황과 고민</option>
+        <option value="D">D, 비교</option>
+      </select>
+      <input data-f="q" type="search" placeholder="질문, 상품, ID 검색" aria-label="검색">
+      <span class="geo-count" data-draw="q-count" data-source="questions">—</span>
+    </div>
+    <div class="q-grid" style="margin-top: var(--cds-gap-md)" data-draw="q-cards" data-source="questions responses"></div>
+  </div>
+</template>
+
+<template id="tpl-waves">
+  <div class="geo-card">
+    <h2>주차별 질문과 응답 현황</h2>
+    <p class="note">회차를 고르면 그 회차의 실행 요약과, 질문마다 네 엔진이 DJ Bank를 언급했는지가 표로 나옵니다. 행을 누르면 질문 상세가 열립니다.</p>
+    <div class="geo-filters">
+      <select data-draw="wave-pick" data-source="responses" aria-label="회차"></select>
+      <span class="geo-count" data-draw="wave-sum" data-source="responses runs">—</span>
+    </div>
+    <div class="wv-matrix-box" style="margin-top: var(--cds-gap-md)">
+      <table data-source="questions responses">
+        <thead><tr>
+          <th data-field="id">ID</th><th data-field="question">질문</th><th data-field="group">그룹</th>
+          <th class="num">ChatGPT</th><th class="num">Gemini</th><th class="num">Claude</th><th class="num">Perplexity</th><th class="num">언급 엔진</th>
+        </tr></thead>
+        <tbody data-draw="wave-matrix"></tbody>
+      </table>
+    </div>
+  </div>
+</template>
+
+
+<script>
+
+  // ---- 독립 실행 셈: 아티팩트 dash API 대체 (data/*.json 로드) ----
+  const dash = (() => {
+    const store = {}; const draws = new Map();
+    const colors = ['var(--s0)', 'var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--s6)', 'var(--s7)'];
+    const run = (n) => { const fn = draws.get(n); if (!fn) return;
+      document.querySelectorAll('[data-draw="' + n + '"]').forEach((el) => {
+        if (el.closest('[hidden]')) return;
+        try { fn(el); } catch (e) { console.error('draw:' + n, e); } }); };
+    const runAll = () => { for (const n of draws.keys()) run(n); };
+    Promise.all(['runs', 'segments', 'brands', 'questions', 'responses'].map((id) =>
+      fetch('data/' + id + '.json').then((r) => r.json()).then((d) => { store[id] = d; })
+        .catch((e) => { console.error('load:' + id, e); store[id] = []; })
+    )).then(runAll);
+    let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(runAll, 150); });
+    return {
+      colors,
+      data: (id) => store[id] ? { status: 'ok', data: store[id] } : { status: 'loading', data: [] },
+      draw: (n, fn) => { if (fn) draws.set(n, fn); run(n); },
+      setLink: (n) => history.replaceState(null, '', '#' + n),
+    };
+  })();
+
+
+  const pct = (v) => v == null ? '—' : d3.format('.1%')(v);
+  const num = (v) => v == null ? '—' : d3.format(',')(v);
+  const ENGINES = ['chatgpt', 'gemini', 'claude', 'perplexity'];
+  const ENGINE_NAMES = { chatgpt: 'ChatGPT', gemini: 'Gemini', claude: 'Claude', perplexity: 'Perplexity' };
+  const SENTI = { positive: '긍정', neutral: '중립', negative: '부정' };
+  const segRows = () => { const g = dash.data('segments'); return g.status === 'ok' ? g.data : []; };
+  const seg = (dim, name) => segRows().find((r) => r.dim === dim && r.name === name);
+  const latestWave = () => { const g = dash.data('runs'); return g.status === 'ok' && g.data.length ? g.data[g.data.length - 1] : null; };
+  const groupBadge = (g) => g === '콘텐츠 대상' ? 'q-badge g-content' : (g === '통제 상품' ? 'q-badge g-control' : 'q-badge g-unrel');
+
+  window.geoState = window.geoState || { sel: null, wave: null, f: { group: '', demand: '', cat: '', q: '' }, made: {} };
+  const S = window.geoState;
+
+  // ---- 페이지 전환 (템플릿은 처음 열 때 복제해 데이터 지연 로드) ----
+  const showPage = (name) => {
+    document.querySelectorAll('.geo [data-page]').forEach((sec) => {
+      const on = sec.dataset.page === name;
+      if (on && !sec.childElementCount) {
+        const tpl = document.getElementById('tpl-' + name);
+        if (tpl) { sec.appendChild(tpl.content.cloneNode(true)); wireFilters(sec); }
+      }
+      sec.hidden = !on;
+    });
+    document.querySelectorAll('.geo-tab').forEach((b) => b.setAttribute('aria-current', String(b.dataset.go === name)));
+    dash.setLink(name);
+    ['q-count', 'q-cards', 'wave-pick', 'wave-sum', 'wave-matrix'].forEach((n) => dash.draw(n));
+  };
+  document.querySelectorAll('.geo-tab').forEach((b) => b.addEventListener('click', () => showPage(b.dataset.go)));
+
+  const wireFilters = (root) => {
+    root.querySelectorAll('[data-f]').forEach((el) => {
+      const ev = el.tagName === 'INPUT' ? 'input' : 'change';
+      el.addEventListener(ev, () => { S.f[el.dataset.f] = el.value.trim(); dash.draw('q-cards'); dash.draw('q-count'); });
+    });
+  };
+
+  // ---- 팝업 ----
+  const pop = document.querySelector('[data-popup]');
+  const openDetail = (qid) => { S.sel = qid; pop.hidden = false; dash.draw('q-detail'); };
+  document.querySelectorAll('[data-pop-close]').forEach((b) => b.addEventListener('click', () => { pop.hidden = true; }));
+  pop.addEventListener('click', (e) => { if (e.target === pop) pop.hidden = true; });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') pop.hidden = true; });
+
+  // ---- 공용 데이터 접근 ----
+  const qRows = () => { const g = dash.data('questions'); return g.status === 'ok' ? g.data : []; };
+  const rRows = () => { const g = dash.data('responses'); return g.status === 'ok' ? g.data : []; };
+  const rWaves = () => [...new Set(rRows().map((r) => r.wave))];
+  const mentioned = (list) => list.some((r) => r.mention === true || r.mention === 'True' || r.mention === 'true');
+  const brandsOf = (r) => { if (Array.isArray(r.brands)) return r.brands; try { const v = JSON.parse(r.brands); return Array.isArray(v) ? v : []; } catch (_) { return []; } };
+
+  // ---- 개요 페이지 드로잉 ----
+  const drawText = (name, fn) => dash.draw(name, (el) => { el.textContent = fn() ?? '—'; });
+  drawText('hl-mention', () => pct(seg('그룹', '콘텐츠 대상')?.mention_p));
+  drawText('hl-control', () => pct(seg('그룹', '통제 상품')?.mention_p));
+  drawText('hero-gap', () => {
+    const a = seg('그룹', '콘텐츠 대상')?.mention_p, b = seg('그룹', '통제 상품')?.mention_p;
+    if (a == null || b == null) return '—';
+    const d = (a - b) * 100;
+    return (d >= 0 ? '+' : '−') + d3.format('.1f')(Math.abs(d)) + '%p';
+  });
+  drawText('t-m', () => pct(seg('그룹', '콘텐츠 대상')?.mention_p));
+  drawText('t-m-ci', () => { const r = seg('그룹', '콘텐츠 대상'); return r ? `95% CI ${pct(r.lo)}–${pct(r.hi)}, ${r.k}/${r.n}` : '—'; });
+  drawText('t-s', () => pct(seg('전체', '전체')?.sov));
+  drawText('t-r', () => { const v = seg('전체', '전체')?.rank_avg; return v == null ? '—' : d3.format('.2f')(v); });
+  dash.draw('t-c', (el) => {
+    const v = seg('전체', '전체')?.critical;
+    el.textContent = v == null ? '—' : num(v) + '건';
+    el.classList.toggle('ok', v === 0); el.classList.toggle('bad', v > 0);
+  });
+  drawText('t-o', () => pct(seg('전체', '전체')?.own_share));
+  drawText('st-q', () => latestWave()?.questions);
+  drawText('st-e', () => latestWave()?.engines);
+  drawText('st-p', () => num(latestWave()?.planned));
+  drawText('st-j', () => latestWave()?.judge_version);
+  drawText('mode-badge', () => latestWave() ? (latestWave().mode.includes('모의') ? '모의 데이터' : '실측 ' + latestWave().wave) : '—');
+
+  dash.draw('runs-body', (tb) => {
+    const g = dash.data('runs');
+    tb.replaceChildren(...(g.status === 'ok' ? g.data : []).map((r) => {
+      const tr = document.createElement('tr');
+      [r.wave, r.date, num(r.planned), num(r.succeeded), num(r.failed), r.mode]
+        .forEach((v) => { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
+      tr.children[2].className = tr.children[3].className = tr.children[4].className = 'num';
+      return tr;
+    }));
+  });
+
+  const rowTable = (name, pick, cols) => dash.draw(name, (tb) => {
+    tb.replaceChildren(...pick().map((r) => {
+      const tr = document.createElement('tr');
+      cols(r).forEach(([v, isNum]) => { const td = document.createElement('td'); td.textContent = v; if (isNum) td.className = 'num'; tr.appendChild(td); });
+      return tr;
+    }));
+  });
+  rowTable('tbl-demand', () => segRows().filter((r) => r.dim === '수요'),
+    (r) => [[r.name], [pct(r.mention_p), 1], [num(r.k), 1], [num(r.n), 1], [pct(r.sov), 1]]);
+  rowTable('tbl-products', () => segRows().filter((r) => r.dim === '상품').sort((a, b) => (b.mention_p ?? 0) - (a.mention_p ?? 0)),
+    (r) => [[r.name], [r.group || '—'], [pct(r.mention_p), 1], [num(r.k), 1], [num(r.n), 1]]);
+
+  const attachTip = (box) => {
+    const t = document.createElement('div'); t.className = 'tip'; t.hidden = true; box.appendChild(t);
+    return {
+      show(ev, html) { t.hidden = false; t.textContent = ''; t.append(html);
+        const b = box.getBoundingClientRect();
+        const x = ev.clientX - b.left + 12, y = ev.clientY - b.top - 8;
+        t.style.left = Math.min(x, box.clientWidth - t.offsetWidth - 4) + 'px'; t.style.top = Math.max(0, y) + 'px'; },
+      hide() { t.hidden = true; },
+    };
+  };
+
+  const hbars = (el, rows, opts) => {
+    el.replaceChildren();
+    const W = el.clientWidth || 320, rowH = opts.rowH || 30, mL = opts.mL, mR = 16;
+    const H = rows.length * rowH + 24;
+    el.style.minHeight = H + 'px';
+    const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`);
+    const x = d3.scaleLinear([0, opts.max], [mL, W - mR]);
+    const tip = attachTip(el);
+    rows.forEach((r, i) => {
+      const y = 12 + i * rowH, v = opts.val(r) ?? 0;
+      svg.append('text').attr('x', mL - 8).attr('y', y + 14).attr('text-anchor', 'end')
+        .attr('fill', 'var(--color-fg)').style('font-size', 'var(--cds-font-size-caption)').text(opts.label(r));
+      svg.append('rect').attr('x', x(0)).attr('y', y).attr('height', 18).attr('rx', 4)
+        .attr('width', Math.max(0, x(v) - x(0))).attr('fill', opts.color(r))
+        .on('mousemove', (ev) => tip.show(ev, opts.tip(r))).on('mouseleave', () => tip.hide());
+      if (opts.ci && r.lo != null) {
+        svg.append('line').attr('x1', x(r.lo)).attr('x2', x(r.hi)).attr('y1', y + 9).attr('y2', y + 9)
+          .attr('stroke', 'var(--cds-chart-axis)').attr('stroke-width', 1.5);
+      }
+      svg.append('text').attr('x', x(v) + 6).attr('y', y + 14)
+        .attr('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)')
+        .text(opts.fmt(v));
+    });
+  };
+
+  dash.draw('chart-groups', (el) => {
+    const order = ['콘텐츠 대상', '통제 상품', '미출시 트랙'];
+    const rows = order.map((n) => seg('그룹', n)).filter(Boolean);
+    if (!rows.length) { el.replaceChildren(); return; }
+    hbars(el, rows, { mL: 96, rowH: 40, max: Math.min(1, d3.max(rows, (r) => r.hi ?? r.mention_p) * 1.15 || 1), ci: true,
+      val: (r) => r.mention_p, label: (r) => r.name, fmt: pct,
+      color: (r) => r.name === '콘텐츠 대상' ? dash.colors[0] : 'var(--cds-chart-muted)',
+      tip: (r) => `${r.name}, ${pct(r.mention_p)} (${r.k}/${r.n})` });
+  });
+
+  dash.draw('chart-engines', (el) => {
+    const rows = segRows().filter((r) => r.dim === '엔진');
+    if (!rows.length) { el.replaceChildren(); return; }
+    hbars(el, rows, { mL: 96, max: Math.min(1, d3.max(rows, (r) => r.hi ?? r.mention_p) * 1.15 || 1), ci: true,
+      val: (r) => r.mention_p, label: (r) => ENGINE_NAMES[r.name] || r.name, fmt: pct,
+      color: () => dash.colors[0],
+      tip: (r) => `${ENGINE_NAMES[r.name] || r.name}, ${pct(r.mention_p)} (${r.k}/${r.n})` });
+  });
+
+  dash.draw('chart-brands', (el) => {
+    const g = dash.data('brands');
+    const rows = (g.status === 'ok' ? [...g.data] : []).sort((a, b) => b.count - a.count);
+    if (!rows.length) { el.replaceChildren(); return; }
+    hbars(el, rows, { mL: 110, max: d3.max(rows, (r) => r.count) * 1.12, ci: false,
+      val: (r) => r.count, label: (r) => r.brand, fmt: num,
+      color: (r) => r.brand === 'DJ Bank' ? dash.colors[0] : 'var(--cds-chart-muted)',
+      tip: (r) => `${r.brand}, ${num(r.count)}회 언급` });
+  });
+
+  dash.draw('chart-trend', (el) => {
+    el.replaceChildren();
+    const series = [['콘텐츠 대상', dash.colors[0]], ['통제 상품', 'var(--cds-chart-axis)']]
+      .map(([name, color]) => ({ name, color, pts: segRows().filter((r) => r.dim === '그룹' && r.name === name) }));
+    const waves = [...new Set(series.flatMap((s) => s.pts.map((p) => p.wave)))];
+    if (!waves.length) return;
+    const W = el.clientWidth || 320, H = 200, mL = 48, mR = 96, mT = 12, mB = 28;
+    el.style.minHeight = H + 'px';
+    const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`);
+    const x = d3.scalePoint(waves, [mL, W - mR]).padding(0.3);
+    const y = d3.scaleLinear([0, 1], [H - mB, mT]);
+    [0, .25, .5, .75, 1].forEach((v) => {
+      svg.append('line').attr('x1', mL).attr('x2', W - mR).attr('y1', y(v)).attr('y2', y(v)).attr('stroke', 'var(--cds-chart-grid)');
+      svg.append('text').attr('x', mL - 6).attr('y', y(v) + 3).attr('text-anchor', 'end')
+        .attr('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)').text(d3.format('.0%')(v));
+    });
+    waves.forEach((w) => svg.append('text').attr('x', x(w)).attr('y', H - 8).attr('text-anchor', 'middle')
+      .attr('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)').text(w));
+    const tip = attachTip(el);
+    series.forEach((s) => {
+      if (s.pts.length > 1) {
+        svg.append('path').attr('fill', 'none').attr('stroke', s.color).attr('stroke-width', 2)
+          .attr('stroke-linecap', 'round').attr('stroke-linejoin', 'round')
+          .attr('d', d3.line((p) => x(p.wave), (p) => y(p.mention_p))(s.pts));
+      }
+      s.pts.forEach((p) => svg.append('circle').attr('cx', x(p.wave)).attr('cy', y(p.mention_p)).attr('r', 4).attr('fill', s.color)
+        .on('mousemove', (ev) => tip.show(ev, `${s.name}, ${p.wave}, ${pct(p.mention_p)}`)).on('mouseleave', () => tip.hide()));
+      const last = s.pts.at(-1);
+      if (last) svg.append('text').attr('x', x(last.wave) + 8).attr('y', y(last.mention_p) + 4)
+        .attr('fill', s.color).style('font-size', 'var(--cds-font-size-caption)').text(`${s.name} ${pct(last.mention_p)}`);
+    });
+  });
+
+  // ---- 질문셋 페이지 ----
+  const filteredQ = () => {
+    const f = S.f, needle = f.q.toLowerCase();
+    return qRows().filter((r) =>
+      (!f.group || r.group === f.group) && (!f.demand || r.demand === f.demand) && (!f.cat || r.category === f.cat) &&
+      (!needle || (r.id + ' ' + r.question + ' ' + r.product).toLowerCase().includes(needle)));
+  };
+  drawText('q-count', () => `${filteredQ().length} / ${qRows().length}문항`);
+
+  dash.draw('q-cards', (grid) => {
+    const resp = rRows(), lastW = rWaves().at(-1);
+    grid.replaceChildren(...filteredQ().map((q) => {
+      const card = document.createElement('button');
+      card.className = 'q-card'; card.type = 'button';
+      const head = document.createElement('div'); head.className = 'qid';
+      const idb = document.createElement('b'); idb.textContent = q.id; head.appendChild(idb);
+      [[q.demand, 'q-badge'], [q.category + '형', 'q-badge'], [q.group, groupBadge(q.group)]]
+        .forEach(([txt, cls]) => { const s = document.createElement('span'); s.className = cls; s.textContent = txt; head.appendChild(s); });
+      const body = document.createElement('div'); body.className = 'qtext'; body.textContent = q.question;
+      const foot = document.createElement('div'); foot.className = 'qfoot';
+      const prod = document.createElement('span'); prod.textContent = q.product;
+      const dots = document.createElement('span'); dots.className = 'q-dots';
+      const mine = resp.filter((r) => r.qid === q.id && r.wave === lastW);
+      if (mine.length) {
+        const hit = ENGINES.filter((e) => mentioned(mine.filter((r) => r.engine === e))).length;
+        dots.textContent = '●'.repeat(hit) + '○'.repeat(ENGINES.length - hit) + ` ${hit}/${ENGINES.length}`;
+        dots.style.color = hit ? 'var(--color-ok)' : 'var(--color-fg-muted)';
+        dots.title = `최근 회차에 DJ Bank를 언급한 엔진 수`;
+      } else { dots.textContent = '측정 전'; }
+      foot.append(prod, dots);
+      card.append(head, body, foot);
+      card.addEventListener('click', () => openDetail(q.id));
+      return card;
+    }));
+  });
+
+  // ---- 질문 상세 팝업 ----
+  dash.draw('q-detail', (box) => {
+    const q = qRows().find((r) => r.id === S.sel);
+    if (!q) { box.textContent = '—'; return; }
+    box.replaceChildren();
+    const h = document.createElement('div');
+    const head = document.createElement('div'); head.className = 'qid';
+    const idb = document.createElement('b'); idb.textContent = q.id; head.appendChild(idb);
+    [[q.demand, 'q-badge'], [q.category + '형', 'q-badge'], [q.group, groupBadge(q.group)], [q.release, 'q-badge'], [q.speaker, 'q-badge']]
+      .forEach(([txt, cls]) => { const s = document.createElement('span'); s.className = cls; s.textContent = txt; head.appendChild(s); });
+    const qq = document.createElement('div'); qq.className = 'qd-q'; qq.textContent = q.question;
+    const rat = document.createElement('div'); rat.className = 'qd-rat';
+    rat.textContent = `상품: ${q.product}` + (q.rationale ? ` · 설계 의도: ${q.rationale}` : '');
+    h.append(head, qq, rat); box.appendChild(h);
+
+    const resp = rRows().filter((r) => r.qid === q.id);
+    const waves = rWaves();
+
+    const trend = document.createElement('div'); trend.className = 'qd-sec';
+    const th3 = document.createElement('h3'); th3.textContent = '회차별 언급 추이';
+    const tl = document.createElement('div'); tl.className = 'qd-trend';
+    waves.forEach((w) => {
+      const mine = resp.filter((r) => r.wave === w);
+      const hit = ENGINES.filter((e) => mentioned(mine.filter((r) => r.engine === e))).length;
+      const line = document.createElement('div');
+      line.textContent = `${w}  ${'●'.repeat(hit)}${'○'.repeat(ENGINES.length - hit)}  ${hit}/${ENGINES.length} 엔진 언급`;
+      line.style.color = hit ? 'var(--color-fg)' : 'var(--color-fg-muted)';
+      tl.appendChild(line);
+    });
+    if (!waves.length) tl.textContent = '아직 측정 전입니다.';
+    trend.append(th3, tl); box.appendChild(trend);
+
+    const lastW = waves.at(-1);
+    if (lastW) {
+      const sec = document.createElement('div'); sec.className = 'qd-sec';
+      const eh = document.createElement('h3'); eh.textContent = `엔진별 응답, ${lastW} 회차`;
+      sec.appendChild(eh);
+      ENGINES.forEach((e) => {
+        const mine = resp.filter((r) => r.wave === lastW && r.engine === e);
+        if (!mine.length) return;
+        const r = mine[0];
+        const bs = brandsOf(r);
+        const d = document.createElement('div'); d.className = 'qd-eng';
+        const hd = document.createElement('div'); hd.className = 'qd-eng-head';
+        const nm = document.createElement('b'); nm.textContent = ENGINE_NAMES[e];
+        hd.appendChild(nm);
+        const isHit = mentioned(mine);
+        const badges = [[isHit ? 'DJ 언급' : '미언급', isHit ? 'q-badge g-content' : 'q-badge']];
+        if (isHit && r.rank != null) badges.push([`순위 ${r.rank}/3`, 'q-badge']);
+        if (isHit && r.rec != null) badges.push([`추천 강도 ${r.rec}/3`, 'q-badge']);
+        if (isHit && r.sentiment) badges.push([SENTI[r.sentiment] || r.sentiment, 'q-badge']);
+        if (bs.length) badges.push([`경쟁 언급 ${bs.length}곳`, 'q-badge']);
+        badges.forEach(([txt, cls]) => { const s = document.createElement('span'); s.className = cls; s.textContent = txt; hd.appendChild(s); });
+        const ex = document.createElement('p'); ex.className = 'qd-ex';
+        ex.textContent = r.excerpt ? r.excerpt + (r.excerpt.length >= 600 ? '…' : '') : '(응답 발췌 없음)';
+        d.append(hd, ex);
+        if (bs.length) {
+          const bl = document.createElement('p'); bl.className = 'qd-ex';
+          bl.textContent = '함께 언급된 브랜드: ' + bs.join(', ');
+          d.appendChild(bl);
+        }
+        sec.appendChild(d);
+      });
+      box.appendChild(sec);
+    }
+  });
+
+  // ---- 주차별 현황 페이지 ----
+  dash.draw('wave-pick', (sel) => {
+    const waves = rWaves();
+    sel.replaceChildren(...waves.map((w) => new Option(w + ' 회차', w)));
+    if (!S.wave || !waves.includes(S.wave)) S.wave = waves.at(-1) ?? null;
+    if (S.wave) sel.value = S.wave;
+    sel.onchange = () => { S.wave = sel.value; dash.draw('wave-sum'); dash.draw('wave-matrix'); };
+  });
+
+  drawText('wave-sum', () => {
+    if (!S.wave) return '측정 전';
+    const rs = rRows().filter((r) => r.wave === S.wave);
+    const qids = new Set(rs.map((r) => r.qid));
+    const hitQ = [...qids].filter((q) => mentioned(rs.filter((r) => r.qid === q))).length;
+    const run = (dash.data('runs').status === 'ok' ? dash.data('runs').data : []).find((r) => r.wave === S.wave);
+    const fail = run ? `, 실패 ${num(run.failed)}건` : '';
+    return `응답 ${num(rs.length)}건${fail} · 질문 ${qids.size}개 중 ${hitQ}개에서 1개 이상 엔진이 DJ Bank 언급`;
+  });
+
+  dash.draw('wave-matrix', (tb) => {
+    const rs = rRows().filter((r) => r.wave === S.wave);
+    tb.replaceChildren(...qRows().map((q) => {
+      const tr = document.createElement('tr');
+      tr.style.cursor = 'pointer';
+      const idTd = document.createElement('td'); idTd.textContent = q.id;
+      const qTd = document.createElement('td'); qTd.textContent = q.question.length > 34 ? q.question.slice(0, 34) + '…' : q.question; qTd.title = q.question;
+      const gTd = document.createElement('td'); gTd.textContent = q.group;
+      tr.append(idTd, qTd, gTd);
+      let hits = 0;
+      ENGINES.forEach((e) => {
+        const mine = rs.filter((r) => r.qid === q.id && r.engine === e);
+        const td = document.createElement('td'); td.className = 'c';
+        if (!mine.length) { td.textContent = '–'; td.className += ' wv-miss'; }
+        else if (mentioned(mine)) { td.textContent = '●'; td.className += ' wv-hit'; hits++; }
+        else { td.textContent = '○'; td.className += ' wv-miss'; }
+        tr.appendChild(td);
+      });
+      const sumTd = document.createElement('td'); sumTd.className = 'num';
+      sumTd.textContent = `${hits}/${ENGINES.length}`;
+      tr.appendChild(sumTd);
+      tr.addEventListener('click', () => openDetail(q.id));
+      return tr;
+    }));
+  });
+
+  // ---- 링크로 열린 자리 복원 ----
+  const startPage = location.hash.slice(1);
+  if (startPage === 'questions' || startPage === 'waves') showPage(startPage);
+
+</script>
+</body>
+</html>
