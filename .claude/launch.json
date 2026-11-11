@@ -4,8 +4,24 @@
     {
       "name": "djbank-geo",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "--port", "5173", "--strictPort"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5173",
+        "--strictPort"
+      ],
       "port": 5173
+    },
+    {
+      "name": "djbank-geo-rehearsal",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev:rehearsal"
+      ],
+      "port": 5174
     }
   ]
 }

@@ -14,7 +14,8 @@ import type {
  * 나중에 API 서버를 붙이면 이 파일의 fetchRows만 교체하면 됩니다.
  */
 async function fetchRows<T>(file: DataFile): Promise<T[]> {
-  const response = await fetch(`${import.meta.env.BASE_URL}data/${file}.json`);
+  // 실행 탭이 파일을 새로 쓴 직후에도 옛 응답을 받지 않도록 캐시를 쓰지 않습니다.
+  const response = await fetch(`${import.meta.env.BASE_URL}data/${file}.json`, { cache: 'no-store' });
   if (!response.ok) throw new Error(`${file}.json: HTTP ${response.status}`);
   return (await response.json()) as T[];
 }

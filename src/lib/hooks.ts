@@ -3,9 +3,9 @@ import type { MouseEvent, ReactNode } from 'react';
 import { loadDashboard } from '../data/api';
 import type { LoadResult } from '../data/api';
 
-export type PageId = 'overview' | 'questions' | 'waves';
+export type PageId = 'overview' | 'questions' | 'waves' | 'run';
 
-const PAGE_IDS: readonly PageId[] = ['overview', 'questions', 'waves'];
+const PAGE_IDS: readonly PageId[] = ['overview', 'questions', 'waves', 'run'];
 
 function pageFromHash(): PageId {
   const hash = window.location.hash.slice(1);
@@ -30,8 +30,10 @@ export function useHashPage(): [PageId, (page: PageId) => void] {
   return [page, go];
 }
 
-export function useDashboard(): LoadResult | null {
+/** 실행 탭이 새 회차를 저장하면 reload로 데이터를 다시 읽습니다. */
+export function useDashboard(): [LoadResult | null, () => void] {
   const [result, setResult] = useState<LoadResult | null>(null);
+  const [version, setVersion] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -41,9 +43,10 @@ export function useDashboard(): LoadResult | null {
     return () => {
       active = false;
     };
-  }, []);
+  }, [version]);
 
-  return result;
+  const reload = useCallback(() => setVersion((v) => v + 1), []);
+  return [result, reload];
 }
 
 export function useElementWidth<T extends HTMLElement>() {

@@ -142,8 +142,8 @@ export function HeroRuler({ mention, mentionBase, share, shareBase }: HeroRulerP
             <RulerRow
               name="은행 언급 중 DJ Bank 몫"
               value={pct(share.value)}
-              detail={`은행 ${segments.length}곳 언급 ${num(share.n)}회 중 ${num(share.k)}회, 경쟁 ${competitors}곳 ${pct(1 - share.value)}`}
-              tip={`DJ Bank 점유율 ${pct(share.value)} (${num(share.k)}/${num(share.n)}회)${baseNote(shareBase)}`}
+              detail={`은행 ${segments.length}곳 언급 ${num(share.n)}건 중 ${num(share.k)}건, 경쟁 ${competitors}곳 ${pct(1 - share.value)}`}
+              tip={`DJ Bank 점유율 ${pct(share.value)} (${num(share.k)}/${num(share.n)}건)${baseNote(shareBase)}`}
               onHover={show}
               onLeave={hide}
             >
@@ -156,7 +156,7 @@ export function HeroRuler({ mention, mentionBase, share, shareBase }: HeroRulerP
                       style={{ width: `${(brand.count / share.n) * 100}%` }}
                       onMouseMove={(event) => {
                         event.stopPropagation();
-                        show(event, `${brand.brand} ${pct(brand.count / share.n)} (${num(brand.count)}회)`);
+                        show(event, `${brand.brand} ${pct(brand.count / share.n)} (${num(brand.count)}건)`);
                       }}
                     />
                   ))}

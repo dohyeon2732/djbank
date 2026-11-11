@@ -4,6 +4,7 @@ import { useDashboard, useHashPage } from './lib/hooks';
 import type { PageId } from './lib/hooks';
 import { OverviewPage } from './pages/OverviewPage';
 import { QuestionsPage } from './pages/QuestionsPage';
+import { RunPage } from './pages/RunPage';
 import { WavesPage } from './pages/WavesPage';
 import { EMPTY_FILTERS } from './types';
 
@@ -11,10 +12,11 @@ const TABS: { id: PageId; label: string }[] = [
   { id: 'overview', label: '개요' },
   { id: 'questions', label: '질문셋' },
   { id: 'waves', label: '주차별 현황' },
+  { id: 'run', label: '실행' },
 ];
 
 export function App() {
-  const result = useDashboard();
+  const [result, reload] = useDashboard();
   const [page, go] = useHashPage();
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [wave, setWave] = useState<string | null>(null);
@@ -66,6 +68,15 @@ export function App() {
               wave={wave}
               onWaveChange={setWave}
               onOpen={setSelectedId}
+            />
+          )}
+          {page === 'run' && (
+            <RunPage
+              onSaved={reload}
+              onShowOverview={() => {
+                reload();
+                go('overview');
+              }}
             />
           )}
           <QuestionDrawer

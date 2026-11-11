@@ -19,12 +19,13 @@ import type { DashboardData, Run } from '../types';
 
 function Seal({ run }: { run: Run | null }) {
   if (!run) return null;
-  const isMock = run.mode.includes('모의');
+  // 실측이 아닌 데이터(모의, 연습 실행)는 붉은 도장으로 구분합니다.
+  const isReal = run.mode === '실측';
   return (
-    <div className={`seal${isMock ? '' : ' seal--live'}`}>
-      {isMock ? (
+    <div className={`seal${isReal ? ' seal--live' : ''}`}>
+      {!isReal ? (
         <>
-          모의
+          {run.mode.includes('연습') ? '연습' : '모의'}
           <br />
           데이터
         </>
@@ -91,7 +92,9 @@ function Metrics({ data }: { data: DashboardData }) {
       <div>
         <dt>추천 강도 평균</dt>
         <dd className="metric-value">{fixed2(total?.rec_avg)}</dd>
-        <dd className="metric-sub">0에서 3, 3이 가장 강한 추천</dd>
+        <dd className="metric-sub">
+          {total && total.rec_avg == null ? 'AI 채점 단계가 생기면 채워집니다' : '0에서 3, 3이 가장 강한 추천'}
+        </dd>
       </div>
       <div>
         <dt>치명 환각</dt>
@@ -99,13 +102,19 @@ function Metrics({ data }: { data: DashboardData }) {
           {critical == null ? '—' : `${num(critical)}건`}
         </dd>
         <dd className="metric-sub">
-          {critical ? '확인 필요. ' : ''}운영주체, 지위, 미존재 상품 오류
+          {total && critical == null
+            ? 'AI 채점 단계가 생기면 채워집니다'
+            : `${critical ? '확인 필요. ' : ''}운영주체, 지위, 미존재 상품 오류`}
         </dd>
       </div>
       <div>
         <dt>자사 인용 점유율</dt>
         <dd className="metric-value">{pct(total?.own_share)}</dd>
-        <dd className="metric-sub">응답이 인용한 출처 중 자사 도메인</dd>
+        <dd className="metric-sub">
+          {total && total.own_share == null && total.total_cit
+            ? '실행 탭에 자사 도메인을 넣으면 계산됩니다'
+            : '응답이 인용한 출처 중 자사 도메인'}
+        </dd>
       </div>
     </dl>
   );
@@ -141,7 +150,7 @@ function BrandChart({ data }: { data: DashboardData }) {
     value: row.count,
     display: num(row.count),
     muted: row.brand !== 'DJ Bank',
-    tip: `${row.brand}, ${num(row.count)}회 언급`,
+    tip: `${row.brand}, 언급 ${num(row.count)}건`,
   }));
   return <BarList rows={rows} max={Math.max(...rows.map((r) => r.value)) * 1.05} />;
 }
@@ -180,7 +189,7 @@ export function OverviewPage({ data }: { data: DashboardData }) {
         </section>
         <section className="block">
           <h2>경쟁 지도</h2>
-          <p className="note">같은 질문에서 AI가 함께 꺼낸 브랜드의 언급 총량입니다. 점유율의 분모가 됩니다.</p>
+          <p className="note">같은 질문에서 AI가 함께 꺼낸 은행별 언급 수입니다. 점유율의 분모가 됩니다.</p>
           <BrandChart data={data} />
         </section>
       </div>
