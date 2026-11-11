@@ -1,1 +1,1 @@
-[{"wave": "MOCK6", "date": "2026-11-09", "planned": 176, "succeeded": 176, "failed": 0, "engines": 4, "questions": 44, "judge_version": "judge-v1.0", "mode": "모의(mock)"}]
+[{"wave":"W1","date":"2026-11-11","planned":8,"succeeded":8,"failed":0,"engines":4,"questions":2,"judge_version":"rule-v1","mode":"실측"}]
