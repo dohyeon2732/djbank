@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { ENGINE_IDS } from '../src/runner/types';
-import type { BrandRule, RunnerConfig } from '../src/runner/types';
-import { writeJsonAtomic } from './files';
+import { ENGINE_IDS } from '../src/runner/types.js';
+import type { BrandRule, RunnerConfig } from '../src/runner/types.js';
+import { writeJsonAtomic } from './files.js';
 
 const CONFIG_FILE = 'runner.config.json';
 

@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { EngineId } from '../src/runner/types';
+import type { EngineId } from '../src/runner/types.js';
 
 export interface Citation {
   url: string;

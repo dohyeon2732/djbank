@@ -1134,6 +1134,19 @@ textarea.input {
   margin-top: 14px;
 }
 
+.run-login {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  max-width: 28rem;
+  margin-top: 18px;
+}
+
+.run-login .field {
+  flex: 1 1 14rem;
+}
+
 .test-result {
   margin-left: 10px;
   color: var(--ink-soft);

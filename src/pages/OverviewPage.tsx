@@ -58,7 +58,7 @@ function Hero({ data }: { data: DashboardData }) {
       <div className="hero-head">
         <h2 id="hero-title" className="hero-title">
           {mention
-            ? `측정 질문 ${data.questions.length}개에 대한 AI 답변 ${num(mention.n)}건 중 ${num(mention.k)}건이 DJ Bank를 언급했습니다.`
+            ? `측정 질문 ${latestRun(data)?.questions ?? data.questions.length}개에 대한 AI 답변 ${num(mention.n)}건 중 ${num(mention.k)}건이 DJ Bank를 언급했습니다.`
             : '아직 측정된 회차가 없습니다.'}
         </h2>
         <Seal run={latestRun(data)} />

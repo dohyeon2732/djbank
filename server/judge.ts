@@ -1,5 +1,5 @@
-import type { BrandRule, RunnerConfig } from '../src/runner/types';
-import type { Citation } from './engines';
+import type { BrandRule, RunnerConfig } from '../src/runner/types.js';
+import type { Citation } from './engines.js';
 
 /** 규칙 채점 버전. 판정 규칙을 바꾸면 올려서 회차별로 구분합니다. */
 export const JUDGE_VERSION = 'rule-v1';

@@ -1,34 +1,16 @@
 import { appendFileSync, copyFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import type { BrandCount, Question, RawAnswer, Run, Segment } from '../src/types';
-import { ENGINE_IDS } from '../src/runner/types';
-import type { EngineId, EngineProgress, JobStatus, RunnerConfig } from '../src/runner/types';
-import { aggregate } from './aggregate';
-import type { ScoredAnswer } from './aggregate';
-import { loadConfig } from './config';
-import { EngineError, callerFor, isFakeMode } from './engines';
-import { ARCHIVE_DIR, DATA_DIR, readRows, writeRows } from './files';
-import { JUDGE_VERSION, judge } from './judge';
-import { loadKeys } from './keys';
+import type { BrandCount, Question, RawAnswer, Run, Segment } from '../src/types.js';
+import { ENGINE_IDS } from '../src/runner/types.js';
+import type { EngineId, EngineProgress, JobStatus, RunnerConfig } from '../src/runner/types.js';
+import type { ScoredAnswer } from './aggregate.js';
+import { loadConfig } from './config.js';
+import { errorText, mergeWave, parseWave, replacesMock, scoreOne } from './core.js';
+import { isFakeMode } from './engines.js';
+import { ARCHIVE_DIR, DATA_DIR, readRows, writeRows } from './files.js';
+import { loadKeys } from './keys.js';
 
-export const REAL_MODE = '실측';
-const FAKE_MODE = '연습(fake)';
-const EXCERPT_LIMIT = 600;
-const WAVE_PATTERN = /^[A-Za-z0-9_-]{1,20}$/;
-
-const isReal = (run: Run) => run.mode === REAL_MODE;
-
-export function nextWaveName(runs: Run[]): string {
-  const taken = new Set(runs.map((r) => r.wave));
-  let index = runs.filter(isReal).length + 1;
-  while (taken.has(`W${index}`)) index += 1;
-  return `W${index}`;
-}
-
-/** 실측이나 연습 기록이 하나도 없고 모의 데이터만 있으면, 첫 실행 때 모의 데이터를 보관 폴더로 옮깁니다. */
-export function replacesMock(runs: Run[]): boolean {
-  return runs.length > 0 && runs.every((r) => r.mode.includes('모의'));
-}
+/** 로컬 실행: 이 프로세스가 직접 엔진을 호출하고 public/data 파일에 저장합니다. */
 
 const idleStatus = (): JobStatus => ({
   state: 'idle',
@@ -64,15 +46,10 @@ export function startRun(root: string, waveInput: unknown, limitInput?: unknown)
   if (status.state === 'running' || status.state === 'cancelling') {
     throw new Error('이미 실행 중입니다. 끝나거나 멈춘 뒤 다시 시작하세요.');
   }
-  const wave = typeof waveInput === 'string' ? waveInput.trim() : '';
-  if (!WAVE_PATTERN.test(wave)) {
-    throw new Error('회차 이름은 영문, 숫자, -, _ 로 20자 이내여야 합니다. 예: W1');
-  }
-
+  const wave = parseWave(waveInput);
   const config = loadConfig(root);
   const { keys } = loadKeys(root);
-  const fake = isFakeMode();
-  const engines = ENGINE_IDS.filter((id) => config.engines[id].enabled && (fake || keys[id]));
+  const engines = ENGINE_IDS.filter((id) => config.engines[id].enabled && (isFakeMode() || keys[id]));
   if (engines.length === 0) {
     throw new Error('실행할 엔진이 없습니다. 엔진을 하나 이상 켜고, 키 파일에 그 엔진의 키를 넣으세요.');
   }
@@ -110,7 +87,7 @@ export function startRun(root: string, waveInput: unknown, limitInput?: unknown)
     message: null,
   };
 
-  void execute(root, wave, config, keys, tasks, questions.length, controller.signal, fake).catch((error: unknown) => {
+  void execute(root, wave, config, keys, tasks, questions.length, controller.signal).catch((error: unknown) => {
     status.state = 'failed';
     status.finishedAt = new Date().toISOString();
     status.message = `저장 중 오류: ${(error as Error).message}`;
@@ -126,7 +103,6 @@ async function execute(
   tasks: Task[],
   questionCount: number,
   signal: AbortSignal,
-  fake: boolean,
 ): Promise<void> {
   // 원본 응답 전문은 회차마다 한 줄씩 바로 적어 둡니다. 실행이 멈춰도 남습니다.
   const archiveDir = join(root, ARCHIVE_DIR);
@@ -138,31 +114,19 @@ async function execute(
     const progress = status.engines.find((e) => e.id === task.engine);
     if (!progress || signal.aborted) return;
     try {
-      const answer = await callerFor(task.engine)({
-        question: task.question.question,
-        model: config.engines[task.engine].model,
-        key: keys[task.engine] ?? '',
-        webSearch: true,
-        signal,
-      });
-      const verdict = judge(answer.text, answer.citations, config);
-      answers.push({
+      const { row, answer, verdict } = await scoreOne({
         wave,
-        qid: task.question.id,
+        question: task.question,
         engine: task.engine,
         rep: task.rep,
-        mention: verdict.mention,
-        rank: verdict.rank,
-        rec: null,
-        sentiment: null,
-        brands: verdict.brands,
-        cites: verdict.cites,
-        excerpt: answer.text.slice(0, EXCERPT_LIMIT) || null,
-        ownCites: verdict.ownCites,
+        config,
+        key: keys[task.engine] ?? '',
+        signal,
       });
+      answers.push(row);
       appendFileSync(
         archivePath,
-        `${JSON.stringify({ wave, qid: task.question.id, engine: task.engine, rep: task.rep, at: new Date().toISOString(), ...answer, verdict })}\n`,
+        `${JSON.stringify({ wave, qid: row.qid, engine: row.engine, rep: row.rep, at: new Date().toISOString(), ...answer, verdict })}\n`,
       );
       progress.done += 1;
       progress.mentioned += verdict.mention ? 1 : 0;
@@ -173,7 +137,7 @@ async function execute(
       if (signal.aborted) return;
       progress.done += 1;
       progress.failed += 1;
-      progress.lastError = error instanceof EngineError ? error.message : `오류: ${(error as Error).message}`;
+      progress.lastError = errorText(error);
     }
   };
 
@@ -202,62 +166,31 @@ async function execute(
     return;
   }
 
-  save(root, wave, config, answers, tasks.length, status.engines.length, questionCount, fake);
-  status.state = 'done';
-  const failed = tasks.length - answers.length;
-  status.message = `${wave} 회차를 저장했습니다. 성공 ${answers.length}건${failed > 0 ? `, 실패 ${failed}건` : ''}.`;
-}
-
-function save(
-  root: string,
-  wave: string,
-  config: RunnerConfig,
-  answers: ScoredAnswer[],
-  planned: number,
-  engineCount: number,
-  questionCount: number,
-  fake: boolean,
-): void {
-  const questions = readRows<Question>(root, 'questions');
-  let runs = readRows<Run>(root, 'runs');
-  let segments = readRows<Segment>(root, 'segments');
-  let brands = readRows<BrandCount>(root, 'brands');
-  let responses = readRows<RawAnswer>(root, 'responses');
-
-  if (replacesMock(runs)) {
+  const existing = {
+    runs: readRows<Run>(root, 'runs'),
+    segments: readRows<Segment>(root, 'segments'),
+    brands: readRows<BrandCount>(root, 'brands'),
+    responses: readRows<RawAnswer>(root, 'responses'),
+  };
+  if (replacesMock(existing.runs)) {
     const backup = join(root, ARCHIVE_DIR, `mock-data-${Date.now()}`);
     mkdirSync(backup, { recursive: true });
-    for (const file of ['runs', 'segments', 'brands', 'responses']) {
+    for (const file of Object.keys(existing)) {
       const source = join(root, DATA_DIR, `${file}.json`);
       if (existsSync(source)) copyFileSync(source, join(backup, `${file}.json`));
     }
-    runs = [];
-    segments = [];
-    brands = [];
-    responses = [];
   }
-
-  // 같은 이름의 회차를 다시 돌리면 이전 값을 새 값으로 바꿉니다.
-  const others = <T extends { wave: string }>(rows: T[]) => rows.filter((row) => row.wave !== wave);
-  const result = aggregate(wave, questions, answers, config.ownBrand.name, config.ownDomains.length > 0);
-
-  const run: Run = {
+  const merged = mergeWave(existing, readRows<Question>(root, 'questions'), {
     wave,
-    date: new Date().toISOString().slice(0, 10),
-    planned,
-    succeeded: answers.length,
-    failed: planned - answers.length,
-    engines: engineCount,
-    questions: questionCount,
-    judge_version: JUDGE_VERSION,
-    mode: fake ? FAKE_MODE : REAL_MODE,
-  };
+    config,
+    answers,
+    planned: tasks.length,
+    engineCount: status.engines.length,
+    questionCount,
+  });
+  for (const [file, rows] of Object.entries(merged)) writeRows(root, file, rows);
 
-  const sorted = [...answers].sort(
-    (a, b) => a.qid.localeCompare(b.qid) || a.engine.localeCompare(b.engine) || a.rep - b.rep,
-  );
-  writeRows(root, 'responses', [...others(responses), ...sorted.map(({ ownCites: _, ...row }) => row)]);
-  writeRows(root, 'segments', [...others(segments), ...result.segments]);
-  writeRows(root, 'brands', [...others(brands), ...result.brands]);
-  writeRows(root, 'runs', [...others(runs), run]);
+  status.state = 'done';
+  const failed = tasks.length - answers.length;
+  status.message = `${wave} 회차를 저장했습니다. 성공 ${answers.length}건${failed > 0 ? `, 실패 ${failed}건` : ''}.`;
 }

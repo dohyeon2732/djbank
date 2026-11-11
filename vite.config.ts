@@ -1,6 +1,6 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
-import { runnerApi } from './server/plugin';
+import { runnerApi } from './server/plugin.js';
 
 // base를 상대 경로로 두어 어떤 하위 경로에 올려도 정적 호스팅으로 동작합니다.
 // runnerApi는 개발 서버에서만 켜지는 실행 API입니다(server/plugin.ts).

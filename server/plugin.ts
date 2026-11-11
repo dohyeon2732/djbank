@@ -1,61 +1,23 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Plugin } from 'vite';
-import { ENGINE_IDS } from '../src/runner/types';
-import type { EngineId, EngineTestResult, RunnerOverview } from '../src/runner/types';
-import type { Question, Run } from '../src/types';
-import { loadConfig, saveConfig } from './config';
-import { ENGINES, EngineError, callerFor, isFakeMode } from './engines';
-import { readRows } from './files';
-import { cancelRun, getStatus, nextWaveName, replacesMock, startRun } from './job';
-import { KEY_NAMES, loadKeys } from './keys';
+import { ENGINE_IDS } from '../src/runner/types.js';
+import type { RunnerOverview } from '../src/runner/types.js';
+import type { Question, Run } from '../src/types.js';
+import { loadConfig, normalizeConfig, saveConfig } from './config.js';
+import { buildOverview, testConnection } from './core.js';
+import { readRows } from './files.js';
+import { isFakeMode } from './engines.js';
+import { handleDb, loadDashboardData } from './hosted.js';
+import { cancelRun, getStatus, startRun } from './job.js';
+import { loadKeys, readEnvFile } from './keys.js';
+import { dbFromEnv } from './supabase.js';
 
 /** 화면(src/runner/client.ts)이 모든 요청에 붙이는 헤더. */
 export const RUNNER_HEADER = 'x-djbank-runner';
-const MAX_BODY = 100_000;
+const MAX_BODY = 200_000;
 
-function overview(root: string): RunnerOverview {
-  const { file, keys } = loadKeys(root);
-  const runs = readRows<Run>(root, 'runs');
-  return {
-    config: loadConfig(root),
-    engines: ENGINE_IDS.map((id) => ({
-      id,
-      name: ENGINES[id].name,
-      keyName: KEY_NAMES[id],
-      keyPresent: Boolean(keys[id]),
-    })),
-    envFile: file,
-    questionCount: readRows<Question>(root, 'questions').length,
-    nextWave: nextWaveName(runs),
-    replacesMock: replacesMock(runs),
-    existingWaves: runs.map((r) => r.wave),
-    fakeMode: isFakeMode(),
-  };
-}
-
-async function testEngine(root: string, engine: EngineId): Promise<EngineTestResult> {
-  const config = loadConfig(root);
-  const { keys } = loadKeys(root);
-  const model = config.engines[engine].model;
-  const key = keys[engine];
-  if (!key && !isFakeMode()) {
-    return { ok: false, model, ms: 0, message: `${KEY_NAMES[engine]} 키가 키 파일에 없습니다.` };
-  }
-  const started = Date.now();
-  try {
-    const answer = await callerFor(engine)({
-      question: '연결 확인입니다. "확인"이라고만 답하세요.',
-      model,
-      key: key ?? '',
-      webSearch: false,
-      signal: AbortSignal.timeout(60_000),
-    });
-    return { ok: true, model: answer.model, ms: Date.now() - started, message: '연결됨' };
-  } catch (error) {
-    const message = error instanceof EngineError ? error.message : (error as Error).message;
-    return { ok: false, model, ms: Date.now() - started, message };
-  }
-}
+const overview = (root: string): RunnerOverview =>
+  buildOverview('local', loadConfig(root), loadKeys(root), readRows<Run>(root, 'runs'), readRows<Question>(root, 'questions'));
 
 async function readBody(req: IncomingMessage): Promise<unknown> {
   let size = 0;
@@ -99,30 +61,56 @@ export function runnerApi(): Plugin {
     apply: 'serve',
     configureServer(server) {
       const root = server.config.root;
+      // 키 파일에 Supabase 설정이 있으면 배포된 사이트와 같은 DB에 저장합니다. 없으면 public/data 파일을 씁니다.
+      // 연습 모드는 가짜 답변이 실제 DB에 섞이지 않도록 항상 파일에 저장합니다(테스트용 설정 파일을 따로 준 경우는 예외).
+      const database = () =>
+        isFakeMode() && !process.env.DJBANK_ENV_FILE ? null : dbFromEnv(readEnvFile(root).values);
+
+      // 대시보드 데이터. DB 설정이 없으면 404로 답해 화면이 public/data의 JSON을 읽게 합니다.
+      server.middlewares.use('/api/data', (_req, res) => {
+        void (async () => {
+          const db = database();
+          if (!db) return send(res, 404, { error: 'Supabase 설정이 없습니다.' });
+          try {
+            return send(res, 200, await loadDashboardData(db));
+          } catch (error) {
+            return send(res, 502, { error: (error as Error).message });
+          }
+        })();
+      });
+
       server.middlewares.use('/api/runner', (req, res) => {
         void (async () => {
           if (!isTrusted(req)) return send(res, 403, { error: '이 화면에서 보낸 요청만 받습니다.' });
-          const route = `${req.method} ${(req.url ?? '/').split('?')[0]}`;
+          const action = new URL(req.url ?? '/', 'http://localhost').searchParams.get('action') ?? '';
           try {
-            switch (route) {
-              case 'GET /overview':
+            const db = database();
+            if (db) {
+              // 이 컴퓨터에서 연 화면은 로그인 없이 씁니다(다른 출처의 요청은 위에서 걸러집니다).
+              const body = req.method === 'POST' ? ((await readBody(req)) as Record<string, unknown>) : {};
+              const result = await handleDb(db, loadKeys(root), action, req.method ?? 'GET', body);
+              return send(res, result.status, result.body);
+            }
+            switch (`${req.method} ${action}`) {
+              case 'GET overview':
                 return send(res, 200, overview(root));
-              case 'POST /config':
+              case 'POST config':
                 saveConfig(root, await readBody(req));
                 return send(res, 200, overview(root));
-              case 'POST /test': {
-                const { engine } = (await readBody(req)) as { engine?: string };
-                const id = ENGINE_IDS.find((e) => e === engine);
+              case 'POST test': {
+                const body = (await readBody(req)) as { engine?: string; config?: unknown };
+                const id = ENGINE_IDS.find((e) => e === body.engine);
                 if (!id) return send(res, 400, { error: '알 수 없는 엔진입니다.' });
-                return send(res, 200, await testEngine(root, id));
+                const config = body.config ? normalizeConfig(body.config) : loadConfig(root);
+                return send(res, 200, await testConnection(id, config, loadKeys(root).keys[id]));
               }
-              case 'POST /start': {
+              case 'POST start': {
                 const { wave, limit } = (await readBody(req)) as { wave?: unknown; limit?: unknown };
                 return send(res, 200, startRun(root, wave, limit));
               }
-              case 'GET /status':
+              case 'GET status':
                 return send(res, 200, getStatus());
-              case 'POST /cancel':
+              case 'POST cancel':
                 return send(res, 200, cancelRun());
               default:
                 return send(res, 404, { error: '없는 경로입니다.' });

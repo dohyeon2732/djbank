@@ -43,8 +43,37 @@ export interface LoadResult {
   failed: DataFile[];
 }
 
+interface DataPayload {
+  runs: Run[];
+  segments: Segment[];
+  brands: BrandCount[];
+  questions: Question[];
+  responses: RawAnswer[];
+}
+
+/**
+ * 서버가 데이터베이스에서 읽어 주는 측정 결과. 서버가 없거나(정적 호스팅)
+ * 데이터베이스 설정이 없으면 null을 돌려주고, 화면은 public/data의 JSON을 읽습니다.
+ */
+async function fetchFromServer(): Promise<DataPayload | null> {
+  try {
+    const response = await fetch('/api/data', { cache: 'no-store' });
+    const type = response.headers.get('content-type') ?? '';
+    if (!response.ok || !type.includes('application/json')) return null;
+    return (await response.json()) as DataPayload;
+  } catch {
+    return null;
+  }
+}
+
 /** 파일 하나가 실패해도 나머지 화면은 그대로 보여 줍니다. */
 export async function loadDashboard(): Promise<LoadResult> {
+  const remote = await fetchFromServer();
+  if (remote) {
+    const { responses, ...rest } = remote;
+    return { data: { ...rest, answers: responses.map(toAnswer) }, failed: [] };
+  }
+
   const failed: DataFile[] = [];
   const load = async <T>(file: DataFile): Promise<T[]> => {
     try {

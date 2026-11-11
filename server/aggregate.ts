@@ -1,5 +1,5 @@
-import { wilson } from '../src/lib/selectors';
-import type { BrandCount, Question, RawAnswer, Segment } from '../src/types';
+import { wilson } from '../src/lib/selectors.js';
+import type { BrandCount, Question, RawAnswer, Segment } from '../src/types.js';
 
 /** 집계에 필요한 응답 한 건. ownCites는 화면용 responses.json에는 저장하지 않습니다. */
 export interface ScoredAnswer extends RawAnswer {

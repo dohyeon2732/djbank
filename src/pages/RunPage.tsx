@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Badge } from '../components/Badges';
 import { num } from '../lib/format';
-import { RunnerUnavailable, runner } from '../runner/client';
+import { runInBrowser } from '../runner/browserJob';
+import { RunnerLocked, RunnerUnavailable, runner } from '../runner/client';
 import type {
   BrandRule,
   EngineId,
@@ -89,6 +90,10 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
   const [tests, setTests] = useState<Partial<Record<EngineId, EngineTestResult | 'pending'>>>({});
   const [confirming, setConfirming] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
+  const [locked, setLocked] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const abort = useRef<AbortController | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const lastState = useRef<JobStatus['state']>('idle');
@@ -101,33 +106,36 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
 
   const fail = useCallback((reason: unknown) => {
     if (reason instanceof RunnerUnavailable) setUnavailable(true);
+    else if (reason instanceof RunnerLocked) setLocked(true);
     else setError((reason as Error).message);
   }, []);
 
+  const load = useCallback(async () => {
+    const next = await runner.overview();
+    apply(next);
+    setLocked(false);
+    // 로컬 모드에서는 탭을 다시 열어도 진행 중인 실행을 이어서 보여 줍니다.
+    if (next.mode === 'local') {
+      const status = await runner.status();
+      setJob(status);
+      lastState.current = status.state;
+    }
+  }, [apply]);
+
   useEffect(() => {
-    let active = true;
-    Promise.all([runner.overview(), runner.status()])
-      .then(([nextOverview, status]) => {
-        if (!active) return;
-        apply(nextOverview);
-        setJob(status);
-        lastState.current = status.state;
-      })
-      .catch((reason: unknown) => active && fail(reason));
-    return () => {
-      active = false;
-    };
-  }, [apply, fail]);
+    load().catch(fail);
+  }, [load, fail]);
 
   // 실행 중에는 1초마다 진행 상황을 읽습니다.
   const busy = isBusy(job);
+  const hosted = overview?.mode === 'hosted';
   useEffect(() => {
-    if (!busy) return;
+    if (!busy || hosted) return;
     const timer = window.setInterval(() => {
       runner.status().then(setJob).catch(fail);
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [busy, fail]);
+  }, [busy, hosted, fail]);
 
   // 실행이 저장까지 끝난 순간 한 번, 대시보드와 다음 회차 이름을 새로 읽습니다.
   useEffect(() => {
@@ -154,6 +162,62 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
     );
   }
 
+  if (locked) {
+    return (
+      <div className="page">
+        <section className="block">
+          <h2 className="page-title">측정 실행</h2>
+          <p className="note">
+            실행하면 API 요금이 나가므로 허용된 계정으로 로그인해야 합니다. 로그인은 이 탭을 닫으면 풀립니다.
+          </p>
+          <form
+            className="run-login"
+            onSubmit={(event) => {
+              event.preventDefault();
+              setError(null);
+              runner
+                .login(email.trim(), password)
+                .then(load)
+                .catch((reason: unknown) => {
+                  if (reason instanceof RunnerLocked) setError(reason.message);
+                  else fail(reason);
+                });
+            }}
+          >
+            <label className="field">
+              <span>이메일</span>
+              <input
+                className="input"
+                type="email"
+                autoComplete="username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </label>
+            <label className="field">
+              <span>비밀번호</span>
+              <input
+                className="input"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </label>
+            <button type="submit" className="button button--primary" disabled={!email || !password}>
+              로그인
+            </button>
+          </form>
+          {error && (
+            <p className="run-error" role="alert">
+              {error}
+            </p>
+          )}
+        </section>
+      </div>
+    );
+  }
+
   if (!overview || !form) {
     return (
       <p className="status-line" role="status">
@@ -169,6 +233,7 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
   const questionCount = limit > 0 ? Math.min(limit, overview.questionCount) : overview.questionCount;
   const planned = questionCount * active.length * form.repetitions;
   const waveTaken = !overview.replacesMock && overview.existingWaves.includes(wave.trim());
+  const unfinished = overview.unfinished.find((u) => u.wave === wave.trim());
 
   const setEngine = (id: EngineId, patch: Partial<EngineSettings>) =>
     setForm({ ...form, engines: { ...form.engines, [id]: { ...form.engines[id], ...patch } } });
@@ -195,8 +260,7 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
     run(async () => {
       setTests((current) => ({ ...current, [id]: 'pending' }));
       try {
-        await saveIfDirty();
-        const result = await runner.test(id);
+        const result = await runner.test(id, toConfig(form, overview.config));
         setTests((current) => ({ ...current, [id]: result }));
       } catch (reason) {
         setTests((current) => ({ ...current, [id]: undefined }));
@@ -207,8 +271,23 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
   const start = () =>
     run(async () => {
       setConfirming(false);
-      await saveIfDirty();
-      setJob(await runner.start(wave, limit));
+      if (!hosted) {
+        await saveIfDirty();
+        setJob(await runner.start(wave, limit));
+        return;
+      }
+      // 배포 모드: 저장하지 않은 설정도 이번 실행에 그대로 적용합니다.
+      abort.current = new AbortController();
+      await runInBrowser({
+        wave: wave.trim(),
+        config: toConfig(form, overview.config),
+        engines: active.map((engine) => engine.id),
+        questionIds: overview.questionIds.slice(0, questionCount),
+        signal: abort.current.signal,
+        onUpdate: setJob,
+      });
+      // 멈추거나 실패한 회차가 "이어서 실행" 안내에 바로 나타나도록 현황을 다시 읽습니다.
+      setOverview(await runner.overview());
     });
 
   return (
@@ -217,10 +296,28 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
         <h2 className="page-title">측정 실행</h2>
         <p className="note">
           질문셋을 엔진에 실제로 묻고 결과를 새 회차로 저장합니다.{' '}
+          {hosted && '응답은 받는 즉시 데이터베이스에 저장되고, 중간에 끊겨도 같은 회차로 이어서 실행할 수 있습니다. '}
           {overview.envFile
             ? `API 키는 이 컴퓨터의 ${overview.envFile} 파일에서 읽고, 화면에는 연결 여부만 표시합니다.`
-            : '키 파일을 찾지 못했습니다. 프로젝트 폴더에 djbank.env 파일을 넣으면 바로 반영됩니다.'}
+            : hosted
+              ? 'API 키는 서버 환경변수에서 읽고, 화면에는 연결 여부만 표시합니다.'
+              : '키 파일을 찾지 못했습니다. 프로젝트 폴더에 djbank.env 파일을 넣으면 바로 반영됩니다.'}
         </p>
+        {hosted && runner.signedInAs() && (
+          <p className="note">
+            {runner.signedInAs()} 계정으로 로그인했습니다.{' '}
+            <button
+              type="button"
+              className="link-button"
+              onClick={() => {
+                runner.logout();
+                setLocked(true);
+              }}
+            >
+              로그아웃
+            </button>
+          </p>
+        )}
         {overview.fakeMode && (
           <p className="load-error" role="status">
             연습 모드입니다. 실제 API를 호출하지 않고 가짜 답변으로 화면과 저장 흐름만 확인합니다.
@@ -396,12 +493,32 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
           )}
           {limit > 0 && limit < overview.questionCount && (
             <p className="note">
-              시험 실행입니다. 일부 문항만 물어 이 회차로 저장합니다. 나중에 같은 회차 이름으로 전체를 다시
-              실행하면 이 값을 덮어씁니다.
+              시험 실행입니다. 일부 문항만 물어 이 회차로 저장합니다.{' '}
+              {hosted
+                ? '나중에 같은 회차 이름으로 전체를 실행하면 나머지 문항만 추가로 묻습니다.'
+                : '나중에 같은 회차 이름으로 전체를 다시 실행하면 이 값을 덮어씁니다.'}
             </p>
           )}
           {waveTaken && (
-            <p className="note">{wave.trim()} 회차가 이미 있습니다. 실행하면 그 회차 값을 새 값으로 바꿉니다.</p>
+            <p className="note">
+              {wave.trim()} 회차가 이미 있습니다.{' '}
+              {hosted
+                ? '실행하면 받아 둔 응답은 그대로 두고 빠진 문항만 추가로 묻습니다.'
+                : '실행하면 그 회차 값을 새 값으로 바꿉니다.'}
+            </p>
+          )}
+          {unfinished && (
+            <p className="note">
+              {unfinished.wave} 회차는 응답 {unfinished.answered}건을 받은 채 멈춰 있습니다. 실행하면 이어서 진행합니다.{' '}
+              <button
+                type="button"
+                className="link-button"
+                disabled={busy}
+                onClick={() => run(async () => apply(await runner.discard(unfinished.wave)))}
+              >
+                받아 둔 응답 버리기
+              </button>
+            </p>
           )}
           {active.length === 0 && (
             <p className="note">실행할 엔진이 없습니다. 키가 연결된 엔진을 하나 이상 켜세요.</p>
@@ -502,7 +619,11 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
           </div>
           <div className="run-actions">
             {job.state === 'running' && (
-              <button type="button" className="button" onClick={() => run(async () => setJob(await runner.cancel()))}>
+              <button
+                type="button"
+                className="button"
+                onClick={() => (hosted ? abort.current?.abort() : run(async () => setJob(await runner.cancel())))}
+              >
                 실행 중지
               </button>
             )}
