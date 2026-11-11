@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Badge, EnginePips, GroupBadge } from '../components/Badges';
+import { Badge, EnginePips } from '../components/Badges';
 import {
   CATEGORY_NAMES,
   answerWaves,
@@ -38,12 +38,6 @@ export function QuestionsPage({ data, filters, onFiltersChange, onOpen }: Questi
         </p>
 
         <div className="filters">
-          <select aria-label="그룹" value={filters.group} onChange={(e) => set({ group: e.target.value })}>
-            <option value="">모든 그룹</option>
-            {options.groups.map((group) => (
-              <option key={group}>{group}</option>
-            ))}
-          </select>
           <select aria-label="수요" value={filters.demand} onChange={(e) => set({ demand: e.target.value })}>
             <option value="">모든 수요</option>
             {options.demands.map((demand) => (
@@ -89,7 +83,6 @@ export function QuestionsPage({ data, filters, onFiltersChange, onOpen }: Questi
                     <span className="entry-tags">
                       <Badge>{question.demand}</Badge>
                       <Badge>{`${question.category}형`}</Badge>
-                      <GroupBadge group={question.group} />
                     </span>
                     <span className="entry-product">{question.product}</span>
                     <span className="entry-hits">

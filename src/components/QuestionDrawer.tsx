@@ -8,7 +8,7 @@ import {
   enginesMentioning,
 } from '../lib/selectors';
 import type { Answer, DashboardData, Question } from '../types';
-import { Badge, EnginePips, GroupBadge } from './Badges';
+import { Badge, EnginePips } from './Badges';
 
 const EXCERPT_LIMIT = 600;
 
@@ -51,7 +51,6 @@ function QuestionDetail({ question, answers }: { question: Question; answers: An
         <b>{question.id}</b>
         <Badge>{question.demand}</Badge>
         <Badge>{`${question.category}형`}</Badge>
-        <GroupBadge group={question.group} />
         <Badge>{question.release}</Badge>
         <Badge>{question.speaker}</Badge>
       </div>

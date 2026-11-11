@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { pct } from '../lib/format';
 import { useElementWidth } from '../lib/hooks';
-import type { GroupPoint } from '../lib/selectors';
+import type { RatePoint } from '../lib/selectors';
 
 export interface TrendSeries {
   name: string;
-  tone: 'content' | 'control';
-  points: GroupPoint[];
+  tone: 'primary' | 'secondary';
+  points: RatePoint[];
 }
 
 const HEIGHT = 220;
@@ -35,7 +35,7 @@ export function TrendChart({ waves, series }: { waves: string[]; series: TrendSe
   const endLabels = series
     .flatMap((s) => {
       const last = s.points.at(-1);
-      return last ? [{ series: s, last, labelY: y(last.mention_p) + 4 }] : [];
+      return last ? [{ series: s, last, labelY: y(last.value) + 4 }] : [];
     })
     .sort((a, b) => a.labelY - b.labelY);
   endLabels.forEach((label, index) => {
@@ -53,7 +53,7 @@ export function TrendChart({ waves, series }: { waves: string[]; series: TrendSe
     : [];
 
   const summary = series
-    .map((s) => `${s.name}: ${s.points.map((p) => `${p.wave} ${pct(p.mention_p)}`).join(', ')}`)
+    .map((s) => `${s.name}: ${s.points.map((p) => `${p.wave} ${pct(p.value)}`).join(', ')}`)
     .join('. ');
 
   return (
@@ -111,11 +111,11 @@ export function TrendChart({ waves, series }: { waves: string[]; series: TrendSe
             <g key={s.name} className={`trend-series trend-series--${s.tone}`}>
               {s.points.length > 1 && (
                 <polyline
-                  points={s.points.map((p) => `${x(p.wave)},${y(p.mention_p)}`).join(' ')}
+                  points={s.points.map((p) => `${x(p.wave)},${y(p.value)}`).join(' ')}
                 />
               )}
               {s.points.map((p) => (
-                <circle key={p.wave} cx={x(p.wave)} cy={y(p.mention_p)} r={p.wave === hoverWave ? 5.5 : 4} />
+                <circle key={p.wave} cx={x(p.wave)} cy={y(p.value)} r={p.wave === hoverWave ? 5.5 : 4} />
               ))}
             </g>
           ))}
@@ -123,7 +123,7 @@ export function TrendChart({ waves, series }: { waves: string[]; series: TrendSe
           {wide &&
             endLabels.map(({ series: s, last, labelY }) => (
               <text key={s.name} className="trend-label" x={x(last.wave) + 10} y={labelY}>
-                {s.name} {pct(last.mention_p)}
+                {s.name} {pct(last.value)}
               </text>
             ))}
 
@@ -155,7 +155,7 @@ export function TrendChart({ waves, series }: { waves: string[]; series: TrendSe
             <b>{hoverWave}</b>
             {hovered.map(({ name, point }) => (
               <div key={name}>
-                {name} {pct(point.mention_p)} ({point.k}/{point.n})
+                {name} {pct(point.value)} ({point.k}/{point.n})
               </div>
             ))}
           </div>

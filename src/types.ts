@@ -82,10 +82,9 @@ export interface DashboardData {
 export type DataFile = 'runs' | 'segments' | 'brands' | 'questions' | 'responses';
 
 export interface QuestionFilters {
-  group: string;
   demand: string;
   category: string;
   search: string;
 }
 
-export const EMPTY_FILTERS: QuestionFilters = { group: '', demand: '', category: '', search: '' };
+export const EMPTY_FILTERS: QuestionFilters = { demand: '', category: '', search: '' };

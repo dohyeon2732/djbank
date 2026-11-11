@@ -44,7 +44,7 @@ input {
 }
 
 :focus-visible {
-  outline: 2px solid var(--series-content);
+  outline: 2px solid var(--series-mention);
   outline-offset: 2px;
 }
 
@@ -92,7 +92,7 @@ input {
 }
 
 .tab[aria-current='page'] {
-  border-bottom-color: var(--series-content);
+  border-bottom-color: var(--series-mention);
   color: var(--ink);
   font-weight: 600;
 }
@@ -251,17 +251,6 @@ input {
   padding-top: 18px;
 }
 
-.ruler-span {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  background-image: repeating-linear-gradient(
-    135deg,
-    var(--hatch) 0 1px,
-    transparent 1px 6px
-  );
-}
-
 .ruler-row {
   position: relative;
 }
@@ -271,11 +260,7 @@ input {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 2px 12px;
-  width: fit-content;
-  max-width: 100%;
   margin-bottom: 6px;
-  padding-right: 10px;
-  background: var(--paper); /* 격차 빗금 위에서도 글자를 읽을 수 있게 합니다. */
 }
 
 .ruler-name {
@@ -296,6 +281,7 @@ input {
 }
 
 .ruler-track {
+  position: relative;
   height: 34px;
 }
 
@@ -315,16 +301,46 @@ input {
   transform-origin: left;
 }
 
-.ruler-bar--content {
-  background: var(--series-content);
+.ruler-bar--own {
+  background: var(--series-mention);
 }
 
-.ruler-bar--control {
-  background: var(--series-control);
+/* 점유율 막대: DJ Bank가 맨 앞, 경쟁 은행은 2px 지면 간격으로 나눕니다. */
+.ruler-stack {
+  display: flex;
+  height: 100%;
+  gap: 2px;
+  transform-origin: left;
 }
 
-.ruler-bar--unreleased {
+.ruler-seg {
+  min-width: 2px;
   background: var(--bar-muted);
+}
+
+.ruler-seg:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.ruler-seg--own {
+  background: var(--series-mention);
+}
+
+/* 기준 회차 값. 막대 위아래로 조금 튀어나오게 그립니다. */
+.ruler-base {
+  position: absolute;
+  top: -5px;
+  bottom: -5px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--ink);
+  box-shadow: 0 0 0 1px var(--paper);
+}
+
+.ruler-legend {
+  margin-top: 14px;
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
 }
 
 .ruler-bar--grow {
@@ -472,7 +488,7 @@ input {
   left: 0;
   height: 14px;
   border-radius: 0 4px 4px 0;
-  background: var(--series-content);
+  background: var(--series-mention);
 }
 
 .bars-fill--muted {
@@ -545,12 +561,12 @@ input {
   border-radius: 2px;
 }
 
-.legend-mark--content {
-  background: var(--series-content);
+.legend-mark--primary {
+  background: var(--series-mention);
 }
 
-.legend-mark--control {
-  background: var(--series-control);
+.legend-mark--secondary {
+  background: var(--series-share);
 }
 
 .trend-grid {
@@ -573,12 +589,12 @@ input {
   stroke-dasharray: 3 3;
 }
 
-.trend-series--content {
-  color: var(--series-content);
+.trend-series--primary {
+  color: var(--series-mention);
 }
 
-.trend-series--control {
-  color: var(--series-control);
+.trend-series--secondary {
+  color: var(--series-share);
 }
 
 .trend-series polyline {
@@ -677,7 +693,7 @@ input {
 }
 
 .cell--hit {
-  color: var(--series-content);
+  color: var(--series-mention);
 }
 
 .cell--miss,
@@ -872,11 +888,6 @@ input {
   color: var(--accent-text);
 }
 
-.badge--dashed {
-  border-style: dashed;
-  border-color: var(--ink-soft);
-}
-
 .pips {
   display: inline-flex;
   align-items: center;
@@ -892,8 +903,8 @@ input {
 }
 
 .pip--on {
-  background: var(--series-content);
-  border-color: var(--series-content);
+  background: var(--series-mention);
+  border-color: var(--series-mention);
 }
 
 .pips-count {

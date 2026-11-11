@@ -1,13 +1,7 @@
-import { ENGINES, GROUP } from '../lib/selectors';
+import { ENGINES } from '../lib/selectors';
 
-export function Badge({ children, variant }: { children: string; variant?: 'accent' | 'dashed' }) {
+export function Badge({ children, variant }: { children: string; variant?: 'accent' }) {
   return <span className={`badge${variant ? ` badge--${variant}` : ''}`}>{children}</span>;
-}
-
-export function GroupBadge({ group }: { group: string }) {
-  if (!group) return null;
-  const variant = group === GROUP.content ? 'accent' : group === GROUP.control ? undefined : 'dashed';
-  return <Badge variant={variant}>{group}</Badge>;
 }
 
 export function EnginePips({ hit }: { hit: number }) {

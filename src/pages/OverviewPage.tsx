@@ -1,20 +1,18 @@
 import { BarList } from '../components/BarList';
 import type { BarRow } from '../components/BarList';
-import { GroupBadge } from '../components/Badges';
-import { GapRuler } from '../components/GapRuler';
+import { HeroRuler } from '../components/HeroRuler';
 import { TrendChart } from '../components/TrendChart';
 import type { TrendSeries } from '../components/TrendChart';
 import { fixed2, num, pct } from '../lib/format';
 import {
   ENGINE_NAMES,
-  GROUP,
   brandsOf,
   findSegment,
-  groupAtLatest,
-  groupSeries,
   latestRun,
   latestWave,
+  mentionSeries,
   segmentsOf,
+  shareSeries,
   waveOrder,
 } from '../lib/selectors';
 import type { DashboardData, Run } from '../types';
@@ -41,56 +39,59 @@ function Seal({ run }: { run: Run | null }) {
   );
 }
 
+/** 최신 회차와 다른 첫 회차를 기준점으로 씁니다. */
+function baseOf<T extends { wave: string }>(series: T[]): T | null {
+  const first = series[0];
+  return first && series.length > 1 ? first : null;
+}
+
 function Hero({ data }: { data: DashboardData }) {
-  const content = groupAtLatest(data, GROUP.content);
-  const control = groupAtLatest(data, GROUP.control);
-  const unreleased = groupAtLatest(data, GROUP.unreleased);
+  const mentions = mentionSeries(data);
+  const shares = shareSeries(data);
+  const wave = latestWave(data);
+  const mention = mentions.find((p) => p.wave === wave) ?? null;
+  const share = shares.find((p) => p.wave === wave) ?? null;
 
   return (
     <section className="hero" aria-labelledby="hero-title">
       <div className="hero-head">
         <h2 id="hero-title" className="hero-title">
-          {content
-            ? `콘텐츠를 발행한 질문의 AI 답변 ${num(content.n)}건 중 ${num(content.k)}건이 DJ Bank를 언급했습니다.`
+          {mention
+            ? `측정 질문 ${data.questions.length}개에 대한 AI 답변 ${num(mention.n)}건 중 ${num(mention.k)}건이 DJ Bank를 언급했습니다.`
             : '아직 측정된 회차가 없습니다.'}
         </h2>
         <Seal run={latestRun(data)} />
       </div>
       <p className="hero-sub">
-        {control
-          ? `발행하지 않은 통제 상품은 ${num(control.n)}건 중 ${num(control.k)}건입니다. 이 격차가 회차를 거치며 벌어지면 콘텐츠가 효과를 낸 것입니다.`
-          : '통제 상품이 아직 측정되지 않아 콘텐츠의 효과는 판정할 수 없습니다.'}
+        {share && `은행 이름이 나온 답변에서 DJ Bank의 몫은 ${pct(share.value)}입니다. `}
+        비교군을 따로 두지 않아 회차 사이 변화에는 엔진 업데이트나 시장 흐름도 섞여 있습니다. 점유율이
+        함께 오르는지로 DJ Bank만의 변화인지 가늠합니다.
       </p>
-      <GapRuler content={content} control={control} unreleased={unreleased} />
+      <HeroRuler
+        mention={mention}
+        mentionBase={mention ? baseOf(mentions) : null}
+        share={share}
+        shareBase={share ? baseOf(shares) : null}
+      />
     </section>
   );
 }
 
 function Metrics({ data }: { data: DashboardData }) {
-  const wave = latestWave(data);
-  const content = groupAtLatest(data, GROUP.content);
-  const total = findSegment(data, '전체', '전체', wave);
-  const brandCount = brandsOf(data, wave).length;
+  const total = findSegment(data, '전체', '전체', latestWave(data));
   const critical = total?.critical;
 
   return (
     <dl className="metrics" aria-label="핵심 지표">
       <div>
-        <dt>콘텐츠 대상 언급률</dt>
-        <dd className="metric-value">{pct(content?.mention_p)}</dd>
-        <dd className="metric-sub">
-          {content ? `${content.k}/${content.n}건, 95% 구간 ${pct(content.lo)}–${pct(content.hi)}` : '측정 전'}
-        </dd>
-      </div>
-      <div>
-        <dt>{brandCount}개사 언급 중 점유율</dt>
-        <dd className="metric-value">{pct(total?.sov)}</dd>
-        <dd className="metric-sub">브랜드 언급 횟수 기준</dd>
-      </div>
-      <div>
         <dt>언급 순위 평균</dt>
         <dd className="metric-value">{fixed2(total?.rank_avg)}</dd>
         <dd className="metric-sub">0에서 3, 3이 첫 번째 언급</dd>
+      </div>
+      <div>
+        <dt>추천 강도 평균</dt>
+        <dd className="metric-value">{fixed2(total?.rec_avg)}</dd>
+        <dd className="metric-sub">0에서 3, 3이 가장 강한 추천</dd>
       </div>
       <div>
         <dt>치명 환각</dt>
@@ -150,7 +151,7 @@ const PIPELINE_STEPS = (run: Run | null) => [
   { title: '질의 러너', detail: `엔진 ${run?.engines ?? '—'}종, 질의 ${num(run?.planned)}건` },
   { title: '원본 보관', detail: '응답 전문과 인용 주소, 모델 버전' },
   { title: '채점', detail: `${run?.judge_version ?? '—'}, 20%는 사람이 재채점` },
-  { title: '집계', detail: '지표 7종, 신뢰구간, 이중차분' },
+  { title: '집계', detail: '지표 7종, 신뢰구간' },
   { title: '산출', detail: '이 페이지와 엑셀 리포트 갱신' },
 ];
 
@@ -162,8 +163,8 @@ export function OverviewPage({ data }: { data: DashboardData }) {
     (a, b) => (b.mention_p ?? 0) - (a.mention_p ?? 0),
   );
   const trend: TrendSeries[] = [
-    { name: GROUP.content, tone: 'content' as const, points: groupSeries(data, GROUP.content) },
-    { name: GROUP.control, tone: 'control' as const, points: groupSeries(data, GROUP.control) },
+    { name: 'DJ Bank 언급률', tone: 'primary' as const, points: mentionSeries(data) },
+    { name: 'DJ Bank 점유율', tone: 'secondary' as const, points: shareSeries(data) },
   ].filter((s) => s.points.length > 0);
 
   return (
@@ -188,13 +189,14 @@ export function OverviewPage({ data }: { data: DashboardData }) {
         <section className="block">
           <h2>회차 추이</h2>
           <p className="note">
-            기준 회차 이후 두 선의 간격이 벌어지는 만큼이 순효과입니다.
+            두 선이 함께 오르면 DJ Bank 쪽의 변화이고, 언급률만 오르고 점유율이 그대로면 은행 언급이 전반적으로
+            늘어난 것입니다.
             {waves.length < 2 && ' 회차가 두 개 이상 쌓이면 선으로 이어집니다.'}
           </p>
           {trend.length > 0 ? (
             <TrendChart waves={waves} series={trend} />
           ) : (
-            <p className="note">그룹별 측정값이 들어오면 추이가 표시됩니다.</p>
+            <p className="note">회차가 측정되면 추이가 표시됩니다.</p>
           )}
         </section>
         <section className="block">
@@ -230,15 +232,13 @@ export function OverviewPage({ data }: { data: DashboardData }) {
       <section className="block">
         <h2>상품별</h2>
         <p className="note">
-          상품 {products.length}종을 언급률 순으로 정렬했습니다. 그룹이 콘텐츠 대상인 상품만 발행 효과
-          판정에 들어갑니다.
+          상품 {products.length}종을 언급률 순으로 정렬했습니다.
         </p>
         <div className="table-scroll">
           <table className="ledger">
             <thead>
               <tr>
                 <th>상품</th>
-                <th>그룹</th>
                 <th className="num">언급률</th>
                 <th className="num">언급</th>
                 <th className="num">표본</th>
@@ -248,7 +248,6 @@ export function OverviewPage({ data }: { data: DashboardData }) {
               {products.map((row) => (
                 <tr key={row.name}>
                   <td>{row.name}</td>
-                  <td>{row.group ? <GroupBadge group={row.group} /> : '—'}</td>
                   <td className="num">{pct(row.mention_p)}</td>
                   <td className="num">{num(row.k)}</td>
                   <td className="num">{num(row.n)}</td>

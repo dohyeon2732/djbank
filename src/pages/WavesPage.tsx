@@ -77,7 +77,7 @@ export function WavesPage({ data, wave, onWaveChange, onOpen }: WavesPageProps) 
               <tr>
                 <th>ID</th>
                 <th>질문</th>
-                <th>그룹</th>
+                <th>상품</th>
                 {ENGINES.map((engine) => (
                   <th key={engine} className="center">
                     {ENGINE_NAMES[engine]}
@@ -102,7 +102,7 @@ export function WavesPage({ data, wave, onWaveChange, onOpen }: WavesPageProps) 
                       </button>
                     </td>
                     <td title={question.question}>{preview}</td>
-                    <td className="nowrap">{question.group}</td>
+                    <td className="nowrap">{question.product}</td>
                     {ENGINES.map((engine) => (
                       <HitCell
                         key={engine}

@@ -2,3 +2,9 @@ node_modules
 dist
 *.local
 .DS_Store
+
+# API 키. 절대 커밋하지 않습니다.
+.env
+.env.*
+!.env.example
+*.env
