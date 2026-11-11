@@ -10,9 +10,9 @@ const CONFIG_FILE = 'runner.config.json';
 export const DEFAULT_CONFIG: RunnerConfig = {
   engines: {
     chatgpt: { enabled: true, model: 'gpt-5' },
-    gemini: { enabled: true, model: 'gemini-2.5-flash' },
+    gemini: { enabled: true, model: 'gemini-3.8-flash' },
     claude: { enabled: true, model: 'claude-opus-5-5' },
-    perplexity: { enabled: true, model: 'sonar' },
+    perplexity: { enabled: true, model: 'fast' },
   },
   repetitions: 1,
   concurrency: 3,

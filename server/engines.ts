@@ -182,35 +182,44 @@ const callGemini: EngineCaller = ({ question, model, key, webSearch, signal }) =
     };
   });
 
-/** Perplexity Sonar. 검색이 기본으로 켜져 있어 webSearch 값과 상관없이 출처가 붙습니다. */
-const callPerplexity: EngineCaller = ({ question, model, key, signal }) =>
+/**
+ * Perplexity Agent API(/v1/agent). 예전 Sonar의 /chat/completions는 폐기됐습니다.
+ * 설정의 model 칸에는 effort 단계(fast, low, medium, high ...)를 적습니다. 단계마다 웹검색이 기본으로 켜져 있어,
+ * 연결 테스트처럼 검색이 필요 없을 때는 max_tool_calls: 0으로 끕니다.
+ */
+const callPerplexity: EngineCaller = ({ question, model, key, webSearch, signal }) =>
   withRetry(signal, async () => {
+    const effort = !model || model.startsWith('sonar') ? 'fast' : model;
     const data = asRecord(
       await postJson(
-        'https://api.perplexity.ai/chat/completions',
+        'https://api.perplexity.ai/v1/agent',
         { authorization: `Bearer ${key}` },
-        { model, messages: [{ role: 'user', content: question }] },
+        { effort, input: question, ...(!webSearch && { max_tool_calls: 0 }) },
         signal,
       ),
     );
 
-    const message = asRecord(asRecord(asArray(data.choices)[0]).message);
-    const fromResults = asArray(data.search_results).flatMap((result) => {
-      const record = asRecord(result);
-      const url = asString(record.url);
-      return url ? [{ url, title: asString(record.title) || null }] : [];
-    });
-    const citations =
-      fromResults.length > 0
-        ? fromResults
-        : asArray(data.citations).flatMap((url) => (typeof url === 'string' ? [{ url, title: null }] : []));
+    const texts: string[] = [];
+    const citations: Citation[] = [];
+    for (const item of asArray(data.output).map(asRecord)) {
+      if (item.type === 'message') {
+        for (const part of asArray(item.content).map(asRecord)) {
+          if (part.type === 'output_text') texts.push(asString(part.text));
+        }
+      } else if (item.type === 'search_results') {
+        for (const result of asArray(item.results).map(asRecord)) {
+          const url = asString(result.url);
+          if (url) citations.push({ url, title: asString(result.title) || null });
+        }
+      }
+    }
     const usage = asRecord(data.usage);
     return {
-      text: asString(message.content),
+      text: texts.join('\n'),
       citations,
-      model: asString(data.model) || model,
-      inputTokens: asNumber(usage.prompt_tokens),
-      outputTokens: asNumber(usage.completion_tokens),
+      model: [asString(data.effort), asString(data.model)].filter(Boolean).join(', ') || effort,
+      inputTokens: asNumber(usage.input_tokens),
+      outputTokens: asNumber(usage.output_tokens),
     };
   });
 

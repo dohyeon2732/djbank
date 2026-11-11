@@ -297,6 +297,10 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
             </table>
           </div>
 
+          <p className="note">
+            Perplexity는 모델 대신 검색 강도 단계를 적습니다: fast, low, medium, high.
+          </p>
+
           <h3 className="run-heading">실행 범위</h3>
           <div className="run-fields">
             <label className="field">
