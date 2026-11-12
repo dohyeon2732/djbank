@@ -23,6 +23,11 @@ export function App() {
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [wave, setWave] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detailWave, setDetailWave] = useState<string | null>(null);
+  const openQuestion = (id: string, fromWave: string | null = null) => {
+    setDetailWave(fromWave);
+    setSelectedId(id);
+  };
 
   return (
     <div className="shell">
@@ -61,7 +66,7 @@ export function App() {
               data={result.data}
               filters={filters}
               onFiltersChange={setFilters}
-              onOpen={setSelectedId}
+              onOpen={(id) => openQuestion(id)}
             />
           )}
           {page === 'waves' && (
@@ -69,7 +74,7 @@ export function App() {
               data={result.data}
               wave={wave}
               onWaveChange={setWave}
-              onOpen={setSelectedId}
+              onOpen={openQuestion}
             />
           )}
           {page === 'sources' && <SourcesPage data={result.data} wave={wave} onWaveChange={setWave} />}
@@ -85,6 +90,7 @@ export function App() {
           <QuestionDrawer
             data={result.data}
             questionId={selectedId}
+            wave={detailWave}
             onClose={() => setSelectedId(null)}
           />
         </main>

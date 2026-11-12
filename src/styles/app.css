@@ -1345,3 +1345,10 @@ textarea.input {
   overflow-wrap: anywhere;
   text-underline-offset: 2px;
 }
+
+/* 질문 상세: 지금 보고 있는 회차 */
+.wave-trend .link-button[aria-pressed='true'] {
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: none;
+}

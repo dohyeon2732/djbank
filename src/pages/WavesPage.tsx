@@ -26,7 +26,7 @@ interface WavesPageProps {
   data: DashboardData;
   wave: string | null;
   onWaveChange: (wave: string) => void;
-  onOpen: (questionId: string) => void;
+  onOpen: (questionId: string, wave: string | null) => void;
 }
 
 export function WavesPage({ data, wave, onWaveChange, onOpen }: WavesPageProps) {
@@ -94,7 +94,7 @@ export function WavesPage({ data, wave, onWaveChange, onOpen }: WavesPageProps) 
                     ? `${question.question.slice(0, QUESTION_PREVIEW)}…`
                     : question.question;
                 return (
-                  <tr key={question.id} className="row-link" onClick={() => onOpen(question.id)}>
+                  <tr key={question.id} className="row-link" onClick={() => onOpen(question.id, current)}>
                     <td>
                       {/* 클릭은 행의 onClick으로 올라갑니다. 버튼은 키보드 접근용입니다. */}
                       <button type="button" className="link-button">

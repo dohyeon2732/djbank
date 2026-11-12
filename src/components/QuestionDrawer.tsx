@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { MouseEvent } from 'react';
 import {
   ENGINES,
@@ -40,10 +40,21 @@ function EngineAnswer({ engine, answers }: { engine: string; answers: Answer[] }
   );
 }
 
-function QuestionDetail({ question, answers }: { question: Question; answers: Answer[] }) {
+function QuestionDetail({
+  question,
+  answers,
+  wave,
+}: {
+  question: Question;
+  answers: Answer[];
+  wave: string | null;
+}) {
   const mine = useMemo(() => answers.filter((a) => a.qid === question.id), [answers, question.id]);
   const waves = useMemo(() => answerWaves(answers), [answers]);
-  const lastWave = waves.at(-1);
+  // 주차별 현황에서 열면 그 회차를, 아니면 최근 회차를 먼저 보여 줍니다. 추이의 회차를 누르면 바뀝니다.
+  const [picked, setPicked] = useState(wave);
+  const shownWave = picked && waves.includes(picked) ? picked : waves.at(-1);
+  const shown = mine.filter((a) => a.wave === shownWave);
 
   return (
     <>
@@ -74,25 +85,29 @@ function QuestionDetail({ question, answers }: { question: Question; answers: An
           <p className="note">아직 측정 전입니다.</p>
         ) : (
           <ul className="wave-trend">
-            {waves.map((wave) => (
-              <li key={wave}>
-                <span>{wave}</span>
-                <EnginePips hit={enginesMentioning(mine.filter((a) => a.wave === wave))} />
+            {waves.map((id) => (
+              <li key={id}>
+                <button
+                  type="button"
+                  className="link-button"
+                  aria-pressed={id === shownWave}
+                  onClick={() => setPicked(id)}
+                >
+                  {id}
+                </button>
+                <EnginePips hit={enginesMentioning(mine.filter((a) => a.wave === id))} />
               </li>
             ))}
           </ul>
         )}
       </section>
 
-      {lastWave && (
+      {shownWave && (
         <section className="drawer-section">
-          <h4>엔진별 응답, {lastWave} 회차</h4>
+          <h4>엔진별 응답, {shownWave} 회차</h4>
+          {shown.length === 0 && <p className="note">{shownWave} 회차에는 이 질문을 묻지 않았습니다.</p>}
           {ENGINES.map((engine) => (
-            <EngineAnswer
-              key={engine}
-              engine={engine}
-              answers={mine.filter((a) => a.wave === lastWave && a.engine === engine)}
-            />
+            <EngineAnswer key={engine} engine={engine} answers={shown.filter((a) => a.engine === engine)} />
           ))}
         </section>
       )}
@@ -103,10 +118,12 @@ function QuestionDetail({ question, answers }: { question: Question; answers: An
 interface QuestionDrawerProps {
   data: DashboardData;
   questionId: string | null;
+  /** 먼저 보여 줄 회차. 없으면 최근 회차. */
+  wave?: string | null;
   onClose: () => void;
 }
 
-export function QuestionDrawer({ data, questionId, onClose }: QuestionDrawerProps) {
+export function QuestionDrawer({ data, questionId, wave = null, onClose }: QuestionDrawerProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const question = data.questions.find((q) => q.id === questionId);
   const isOpen = Boolean(question);
@@ -137,7 +154,9 @@ export function QuestionDrawer({ data, questionId, onClose }: QuestionDrawerProp
             닫기
           </button>
         </div>
-        {question && <QuestionDetail question={question} answers={data.answers} />}
+        {question && (
+          <QuestionDetail key={`${question.id}:${wave ?? ''}`} question={question} answers={data.answers} wave={wave} />
+        )}
       </div>
     </dialog>
   );
