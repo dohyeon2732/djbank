@@ -1,3 +1,5 @@
+import type { SourceKind } from './lib/sources';
+
 /** data/*.json 한 행의 모양. 파이프라인 출력이 바뀌면 여기부터 고칩니다. */
 
 export interface Run {
@@ -71,12 +73,32 @@ export interface Answer extends Omit<RawAnswer, 'mention' | 'brands'> {
   brands: string[];
 }
 
+/** 인용 출처 집계 한 행: 한 회차에서 한 엔진이 한 사이트를 인용한 기록. */
+export interface SourceRow {
+  wave: string;
+  engine: string;
+  /** 사이트 단위 도메인. 주소를 알 수 없으면 빈 문자열. */
+  domain: string;
+  /** 사이트 주인(은행, 언론사 등). 규칙에 없으면 도메인 그대로. */
+  owner: string;
+  kind: SourceKind;
+  /** 인용 수. 한 답변 안의 같은 주소는 한 번만 셉니다. */
+  cites: number;
+  /** 이 사이트를 인용한 답변 수. */
+  answers: number;
+  qids: string[];
+  /** 많이 인용된 페이지 몇 개. */
+  pages: { url: string; title: string | null; n: number }[];
+}
+
 export interface DashboardData {
   runs: Run[];
   segments: Segment[];
   brands: BrandCount[];
   questions: Question[];
   answers: Answer[];
+  /** 서버(DB)에서 읽을 때만 채워집니다. 파일 모드에서는 빈 배열. */
+  sources: SourceRow[];
 }
 
 export type DataFile = 'runs' | 'segments' | 'brands' | 'questions' | 'responses';

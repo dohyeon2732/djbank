@@ -7,6 +7,7 @@ import type {
   RawAnswer,
   Run,
   Segment,
+  SourceRow,
 } from '../types';
 
 /**
@@ -49,6 +50,7 @@ interface DataPayload {
   brands: BrandCount[];
   questions: Question[];
   responses: RawAnswer[];
+  sources?: SourceRow[];
 }
 
 /**
@@ -70,8 +72,8 @@ async function fetchFromServer(): Promise<DataPayload | null> {
 export async function loadDashboard(): Promise<LoadResult> {
   const remote = await fetchFromServer();
   if (remote) {
-    const { responses, ...rest } = remote;
-    return { data: { ...rest, answers: responses.map(toAnswer) }, failed: [] };
+    const { responses, sources, ...rest } = remote;
+    return { data: { ...rest, answers: responses.map(toAnswer), sources: sources ?? [] }, failed: [] };
   }
 
   const failed: DataFile[] = [];
@@ -93,5 +95,5 @@ export async function loadDashboard(): Promise<LoadResult> {
     load<RawAnswer>('responses'),
   ]);
 
-  return { data: { runs, segments, brands, questions, answers: responses.map(toAnswer) }, failed };
+  return { data: { runs, segments, brands, questions, answers: responses.map(toAnswer), sources: [] }, failed };
 }

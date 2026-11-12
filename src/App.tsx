@@ -5,6 +5,7 @@ import type { PageId } from './lib/hooks';
 import { OverviewPage } from './pages/OverviewPage';
 import { QuestionsPage } from './pages/QuestionsPage';
 import { RunPage } from './pages/RunPage';
+import { SourcesPage } from './pages/SourcesPage';
 import { WavesPage } from './pages/WavesPage';
 import { EMPTY_FILTERS } from './types';
 
@@ -12,6 +13,7 @@ const TABS: { id: PageId; label: string }[] = [
   { id: 'overview', label: '개요' },
   { id: 'questions', label: '질문셋' },
   { id: 'waves', label: '주차별 현황' },
+  { id: 'sources', label: '인용 출처' },
   { id: 'run', label: '실행' },
 ];
 
@@ -70,6 +72,7 @@ export function App() {
               onOpen={setSelectedId}
             />
           )}
+          {page === 'sources' && <SourcesPage data={result.data} wave={wave} onWaveChange={setWave} />}
           {page === 'run' && (
             <RunPage
               onSaved={reload}

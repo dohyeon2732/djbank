@@ -1311,3 +1311,37 @@ textarea.input {
     animation: none;
   }
 }
+
+/* 인용 출처: 펼친 행 */
+.ledger tbody .source-detail td {
+  background: var(--sheet);
+  border-bottom: 1px solid var(--line);
+  padding: 12px 12px 14px 24px;
+}
+
+.source-detail-meta {
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+  margin: 0 0 6px;
+}
+
+.source-pages {
+  display: grid;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.source-pages li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.source-pages a {
+  color: var(--accent-text);
+  overflow-wrap: anywhere;
+  text-underline-offset: 2px;
+}

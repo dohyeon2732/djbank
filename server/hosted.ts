@@ -1,4 +1,6 @@
 import type { BrandCount, DashboardData, Question, RawAnswer, Run, Segment } from '../src/types.js';
+import { summarizeSources } from './sources.js';
+import type { CitedAnswer } from './sources.js';
 import { ENGINE_IDS } from '../src/runner/types.js';
 import type { AskResult, BeginResult, RunnerConfig, RunnerOverview } from '../src/runner/types.js';
 import { aggregate } from './aggregate.js';
@@ -64,14 +66,16 @@ export async function loadDashboardData(db: Db): Promise<Omit<DashboardData, 'an
     loadQuestions(db),
     selectAll<Run>(db, 'runs', `select=${RUN_COLUMNS}&status=eq.done&order=created_at.asc`),
   ]);
-  if (runs.length === 0) return { runs, questions, segments: [], brands: [], responses: [] };
+  if (runs.length === 0) return { runs, questions, segments: [], brands: [], responses: [], sources: [] };
   const filter = inWaves(runs.map((r) => r.wave));
-  const [segments, brands, responses] = await Promise.all([
+  const [segments, brands, responses, cited, config] = await Promise.all([
     selectAll<Segment>(db, 'segments', `select=*&${filter}`),
     selectAll<BrandCount>(db, 'brands', `select=*&${filter}&order=count.desc`),
     selectAll<RawAnswer>(db, 'responses', `select=${RESPONSE_COLUMNS}&${filter}&order=qid.asc,engine.asc,rep.asc`),
+    selectAll<CitedAnswer>(db, 'response_raw', `select=wave,qid,engine,rep,citations&${filter}&order=qid.asc,engine.asc,rep.asc`),
+    loadConfig(db),
   ]);
-  return { runs, questions, segments, brands, responses };
+  return { runs, questions, segments, brands, responses, sources: summarizeSources(cited, config.ownDomains) };
 }
 
 async function overview(db: Db, keys: LoadedKeys): Promise<RunnerOverview> {

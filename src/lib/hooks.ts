@@ -3,9 +3,9 @@ import type { MouseEvent, ReactNode } from 'react';
 import { loadDashboard } from '../data/api';
 import type { LoadResult } from '../data/api';
 
-export type PageId = 'overview' | 'questions' | 'waves' | 'run';
+export type PageId = 'overview' | 'questions' | 'waves' | 'sources' | 'run';
 
-const PAGE_IDS: readonly PageId[] = ['overview', 'questions', 'waves', 'run'];
+const PAGE_IDS: readonly PageId[] = ['overview', 'questions', 'waves', 'sources', 'run'];
 
 function pageFromHash(): PageId {
   const hash = window.location.hash.slice(1);
