@@ -469,7 +469,7 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
               />
             </label>
             <label className="field">
-              <span>자사 도메인, 쉼표로 구분. 비워 두면 자사 인용 점유율은 계산하지 않습니다</span>
+              <span>자사 도메인 또는 자사 페이지 주소, 쉼표로 구분. 예: mkt.rememberapp.co.kr/djbank</span>
               <input
                 className="input"
                 placeholder="예: djbank.co.kr"

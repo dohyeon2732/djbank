@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ENGINE_IDS } from '../src/runner/types.js';
 import type { BrandRule, RunnerConfig } from '../src/runner/types.js';
+import { normalizeOwn } from '../src/lib/sources.js';
 import { writeJsonAtomic } from './files.js';
 
 const CONFIG_FILE = 'runner.config.json';
@@ -28,7 +29,8 @@ export const DEFAULT_CONFIG: RunnerConfig = {
     { name: '토스뱅크', aliases: ['토스뱅크'] },
     { name: '카카오뱅크', aliases: ['카카오뱅크', '카뱅'] },
   ],
-  ownDomains: [],
+  // 도메인 또는 남의 도메인 아래 자사 페이지 주소. DJ Bank 안내 페이지는 리멤버 도메인 아래에 있습니다.
+  ownDomains: ['mkt.rememberapp.co.kr/djbank'],
 };
 
 export const LIMITS = {
@@ -81,7 +83,9 @@ export function normalizeConfig(input: unknown): RunnerConfig {
     concurrency: clamp(raw.concurrency, LIMITS.concurrency.min, LIMITS.concurrency.max, DEFAULT_CONFIG.concurrency),
     ownBrand: cleanBrand(raw.ownBrand) ?? DEFAULT_CONFIG.ownBrand,
     competitors,
-    ownDomains: raw.ownDomains ? cleanList(raw.ownDomains).map((d) => d.toLowerCase()) : [],
+    ownDomains: raw.ownDomains
+      ? cleanList(raw.ownDomains).map(normalizeOwn).filter(Boolean)
+      : DEFAULT_CONFIG.ownDomains,
   };
 }
 

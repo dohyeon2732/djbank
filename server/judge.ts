@@ -1,4 +1,5 @@
 import type { BrandRule, RunnerConfig } from '../src/runner/types.js';
+import { matchOwn } from '../src/lib/sources.js';
 import type { Citation } from './engines.js';
 
 /** 규칙 채점 버전. 판정 규칙을 바꾸면 올려서 회차별로 구분합니다. */
@@ -22,22 +23,6 @@ function firstIndex(text: string, rule: BrandRule): number {
   return hits.length > 0 ? Math.min(...hits) : -1;
 }
 
-function hostOf(url: string): string {
-  try {
-    return new URL(url).hostname.toLowerCase();
-  } catch {
-    return '';
-  }
-}
-
-/** 출처 주소나 제목(Gemini는 제목에 도메인이 담깁니다)이 자사 도메인이면 자사 인용으로 셉니다. */
-function isOwnCitation(citation: Citation, domains: string[]): boolean {
-  const candidates = [hostOf(citation.url), (citation.title ?? '').toLowerCase()];
-  return domains.some((domain) =>
-    candidates.some((value) => value === domain || value.endsWith(`.${domain}`)),
-  );
-}
-
 export function judge(text: string, citations: Citation[], config: RunnerConfig): Judgement {
   const own = firstIndex(text, config.ownBrand);
   const competitors = config.competitors
@@ -57,6 +42,6 @@ export function judge(text: string, citations: Citation[], config: RunnerConfig)
     rank,
     brands: competitors.map((hit) => hit.name),
     cites: unique.length,
-    ownCites: unique.filter((c) => isOwnCitation(c, config.ownDomains)).length,
+    ownCites: unique.filter((c) => matchOwn(c.url, c.title ?? null, config.ownDomains) !== null).length,
   };
 }

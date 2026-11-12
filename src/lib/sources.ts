@@ -162,6 +162,7 @@ const SITES: Record<string, SiteInfo> = {
   'finda.co.kr': site('핀다', 'fintech'),
   'kakaopay.com': site('카카오페이', 'fintech'),
   'pay.naver.com': site('네이버페이', 'fintech'),
+  'rememberapp.co.kr': site('리멤버', 'fintech'),
 
   // 블로그·커뮤니티
   'blog.naver.com': site('네이버 블로그', 'community'),
@@ -219,8 +220,54 @@ export function siteDomain(host: string): string {
   return labels.slice(-size).join('.');
 }
 
-/** 인용 한 건이 가리키는 사이트 도메인. 알 수 없으면 빈 문자열. */
-export function citationDomain(url: string, title: string | null): string {
+/**
+ * 자사 주소 설정값을 비교용으로 다듬습니다. 도메인(djbank.co.kr)과
+ * 남의 도메인 아래 자사 페이지(mkt.rememberapp.co.kr/djbank)를 모두 받습니다.
+ */
+export function normalizeOwn(entry: string): string {
+  return entry
+    .trim()
+    .toLowerCase()
+    .replace(/^[a-z]+:\/\//, '')
+    .replace(/^www\./, '')
+    .replace(/[?#].*$/, '')
+    .replace(/\/+$/, '');
+}
+
+/** 인용 주소가 자사 설정에 걸리면 그 설정값을, 아니면 null을 돌려줍니다. */
+export function matchOwn(url: string, title: string | null, owns: string[]): string | null {
+  let host = hostOf(url).replace(/^www\./, '');
+  let path = '';
+  if (REDIRECT_HOSTS.includes(host)) {
+    // 경유 링크는 원래 경로를 알 수 없어, 제목의 도메인만으로 비교합니다.
+    const hint = (title ?? '').trim().toLowerCase().replace(/^www\./, '');
+    host = looksLikeDomain(hint) ? hint : '';
+  } else {
+    try {
+      path = new URL(url).pathname.toLowerCase().replace(/\/+$/, '');
+    } catch {
+      path = '';
+    }
+  }
+  if (!host) return null;
+  for (const own of owns.map(normalizeOwn).filter(Boolean)) {
+    if (own.includes('/')) {
+      const full = `${host}${path}`;
+      if (full === own || full.startsWith(`${own}/`)) return own;
+    } else if (host === own || host.endsWith(`.${own}`)) {
+      return own;
+    }
+  }
+  return null;
+}
+
+/**
+ * 인용 한 건이 가리키는 사이트 도메인. 알 수 없으면 빈 문자열.
+ * 남의 도메인 아래 자사 페이지는 그 설정값(예: mkt.rememberapp.co.kr/djbank)으로 따로 묶습니다.
+ */
+export function citationDomain(url: string, title: string | null, owns: string[] = []): string {
+  const own = matchOwn(url, title, owns);
+  if (own?.includes('/')) return own;
   const host = hostOf(url);
   if (REDIRECT_HOSTS.includes(host)) {
     const hint = (title ?? '').trim().toLowerCase();
@@ -231,7 +278,9 @@ export function citationDomain(url: string, title: string | null): string {
 
 export function classifySite(domain: string, ownDomains: string[] = []): SiteInfo {
   if (!domain) return site('주소를 알 수 없음', 'other');
-  if (ownDomains.some((own) => domain === own || domain.endsWith(`.${own}`))) return site('DJ Bank', 'own');
+  if (ownDomains.map(normalizeOwn).some((own) => own && (domain === own || domain.endsWith(`.${own}`)))) {
+    return site('DJ Bank', 'own');
+  }
   const known = SITES[domain];
   if (known) return known;
 

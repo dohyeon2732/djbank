@@ -27,7 +27,7 @@ export function summarizeSources(answers: CitedAnswer[], ownDomains: string[]): 
     const unique = [...new Map((answer.citations ?? []).map((c) => [c.url, c])).values()];
     for (const citation of unique) {
       if (!citation?.url) continue;
-      const domain = citationDomain(citation.url, citation.title ?? null);
+      const domain = citationDomain(citation.url, citation.title ?? null, ownDomains);
       const key = `${answer.wave}\u0000${answer.engine}\u0000${domain}`;
       let group = groups.get(key);
       if (!group) {
