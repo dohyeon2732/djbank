@@ -31,6 +31,10 @@ export class EngineError extends Error {
   constructor(
     message: string,
     readonly retryable: boolean,
+    /** 호출 한도(429)에 걸렸을 때. 일반 오류보다 오래 기다렸다가 다시 시도합니다. */
+    readonly rateLimited = false,
+    /** 서버가 Retry-After로 알려 준 대기 시간. */
+    readonly retryAfterMs: number | null = null,
   ) {
     super(message);
   }
@@ -38,6 +42,9 @@ export class EngineError extends Error {
 
 const REQUEST_TIMEOUT_MS = 180_000;
 const RETRY_DELAYS_MS = [2_000, 6_000];
+// 호출 한도는 보통 분 단위로 풀리므로 더 길게, 한 번 더 기다립니다.
+const RATE_LIMIT_DELAYS_MS = [5_000, 15_000, 30_000];
+const MAX_RETRY_AFTER_MS = 60_000;
 
 const sleep = (ms: number, signal: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
@@ -48,13 +55,16 @@ const sleep = (ms: number, signal: AbortSignal) =>
     });
   });
 
-/** 429, 5xx, 네트워크 오류는 두 번까지 다시 시도합니다. */
+/** 5xx와 네트워크 오류는 두 번, 호출 한도(429)는 더 길게 세 번까지 다시 시도합니다. */
 async function withRetry<T>(signal: AbortSignal, attempt: () => Promise<T>): Promise<T> {
   for (let index = 0; ; index += 1) {
     try {
       return await attempt();
     } catch (error) {
-      const delay = RETRY_DELAYS_MS[index];
+      const limited = error instanceof EngineError && error.rateLimited;
+      const planned = (limited ? RATE_LIMIT_DELAYS_MS : RETRY_DELAYS_MS)[index];
+      const asked = limited ? error.retryAfterMs : null;
+      const delay = planned === undefined ? undefined : Math.min(MAX_RETRY_AFTER_MS, Math.max(planned, asked ?? 0));
       const retryable = error instanceof EngineError ? error.retryable : !signal.aborted;
       if (!retryable || delay === undefined || signal.aborted) throw error;
       await sleep(delay, signal);
@@ -91,8 +101,14 @@ async function postJson(
     } catch {
       // 본문이 JSON이 아니면 앞부분만 보여 줍니다.
     }
-    const retryable = response.status === 429 || response.status >= 500;
-    throw new EngineError(`HTTP ${response.status}: ${detail}`, retryable);
+    const limited = response.status === 429;
+    const seconds = Number(response.headers.get('retry-after'));
+    throw new EngineError(
+      `HTTP ${response.status}: ${detail}`,
+      limited || response.status >= 500,
+      limited,
+      limited && Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : null,
+    );
   }
   return JSON.parse(text) as unknown;
 }
