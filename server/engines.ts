@@ -244,7 +244,7 @@ const callPerplexity: EngineCaller = ({ question, model, key, webSearch, signal 
  * 검색이 길어지면 pause_turn으로 멈추므로 이어서 다시 보냅니다.
  * 안전 분류기가 거절하면 서버 쪽 폴백 모델이 대신 답하고, 그 모델 이름이 기록됩니다.
  */
-const callClaude: EngineCaller = async ({ question, model, key, webSearch, signal }) => {
+const askClaude: EngineCaller = async ({ question, model, key, webSearch, signal }) => {
   // 주소를 고정해, 셸에 ANTHROPIC_BASE_URL 같은 환경변수가 있어도 키가 공식 API로만 갑니다.
   const client = new Anthropic({
     apiKey: key,
@@ -256,9 +256,13 @@ const callClaude: EngineCaller = async ({ question, model, key, webSearch, signa
   const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: 'user', content: question }];
   const texts: string[] = [];
   const citations: Citation[] = [];
+  // 인용 표시 없이 검색만 한 경우에 쓰는, 검색해서 가져온 결과 목록.
+  const searched: Citation[] = [];
   let inputTokens = 0;
   let outputTokens = 0;
   let servedBy = model;
+  // Haiku는 서버 쪽 폴백을 지원하지 않아, 폴백 옵션을 보내면 요청이 거절됩니다.
+  const fallback = !/haiku/i.test(model);
 
   try {
     for (let turn = 0; turn < 4; turn += 1) {
@@ -266,8 +270,7 @@ const callClaude: EngineCaller = async ({ question, model, key, webSearch, signa
         {
           model,
           max_tokens: 16000,
-          betas: ['server-side-fallback-2026-07-01'],
-          fallbacks: 'default',
+          ...(fallback && { betas: ['server-side-fallback-2026-07-01' as const], fallbacks: 'default' as const }),
           output_config: { effort: webSearch ? 'medium' : 'low' },
           ...(webSearch && {
             tools: [
@@ -296,6 +299,11 @@ const callClaude: EngineCaller = async ({ question, model, key, webSearch, signa
       }
 
       for (const block of response.content) {
+        if (block.type === 'web_search_tool_result' && Array.isArray(block.content)) {
+          for (const result of block.content) {
+            if (result.type === 'web_search_result') searched.push({ url: result.url, title: result.title });
+          }
+        }
         if (block.type !== 'text') continue;
         texts.push(block.text);
         for (const citation of block.citations ?? []) {
@@ -312,15 +320,25 @@ const callClaude: EngineCaller = async ({ question, model, key, webSearch, signa
     if (error instanceof EngineError || signal.aborted) throw error;
     if (error instanceof Anthropic.AuthenticationError) throw new EngineError('키가 올바르지 않습니다', false);
     if (error instanceof Anthropic.NotFoundError) throw new EngineError(`모델을 찾을 수 없습니다: ${model}`, false);
-    if (error instanceof Anthropic.RateLimitError) throw new EngineError('호출 한도 초과(429)', false);
+    if (error instanceof Anthropic.RateLimitError) throw new EngineError('호출 한도 초과(429)', true, true);
     if (error instanceof Anthropic.APIError) {
       throw new EngineError(`HTTP ${error.status ?? '?'}: ${error.message}`, false);
     }
     throw new EngineError(`네트워크 오류: ${(error as Error).message}`, false);
   }
 
-  return { text: texts.join(''), citations, model: servedBy, inputTokens, outputTokens };
+  // 답변에 인용 표시가 하나도 없으면, 검색해서 읽은 결과를 출처로 남깁니다.
+  return {
+    text: texts.join(''),
+    citations: citations.length > 0 ? citations : searched,
+    model: servedBy,
+    inputTokens,
+    outputTokens,
+  };
 };
+
+/** 호출 한도(429)에 걸리면 기다렸다가 처음부터 다시 묻습니다. */
+const callClaude: EngineCaller = (args) => withRetry(args.signal, () => askClaude(args));
 
 /**
  * 연습 실행. DJBANK_RUNNER_FAKE=1로 서버를 켜면 실제 API 대신 이 함수가 답합니다.
