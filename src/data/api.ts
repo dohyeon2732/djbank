@@ -35,6 +35,19 @@ function parseBrands(value: RawAnswer['brands']): string[] {
   }
 }
 
+/**
+ * 응답을 회차가 실행된 순서로 정렬합니다. 화면은 응답에 처음 나오는 순서로 회차를 나열하므로,
+ * 이 순서가 어긋나면 '최근 회차'를 잘못 고릅니다.
+ */
+function inRunOrder(answers: Answer[], runs: Run[]): Answer[] {
+  const order = new Map(runs.map((run, index) => [run.wave, index]));
+  const at = (wave: string) => order.get(wave) ?? runs.length;
+  return answers
+    .map((answer, index) => ({ answer, index }))
+    .sort((a, b) => at(a.answer.wave) - at(b.answer.wave) || a.index - b.index)
+    .map(({ answer }) => answer);
+}
+
 function toAnswer(raw: RawAnswer): Answer {
   return { ...raw, mention: parseMention(raw.mention), brands: parseBrands(raw.brands) };
 }
@@ -73,7 +86,10 @@ export async function loadDashboard(): Promise<LoadResult> {
   const remote = await fetchFromServer();
   if (remote) {
     const { responses, sources, ...rest } = remote;
-    return { data: { ...rest, answers: responses.map(toAnswer), sources: sources ?? [] }, failed: [] };
+    return {
+      data: { ...rest, answers: inRunOrder(responses.map(toAnswer), rest.runs), sources: sources ?? [] },
+      failed: [],
+    };
   }
 
   const failed: DataFile[] = [];
@@ -95,5 +111,8 @@ export async function loadDashboard(): Promise<LoadResult> {
     load<RawAnswer>('responses'),
   ]);
 
-  return { data: { runs, segments, brands, questions, answers: responses.map(toAnswer), sources: [] }, failed };
+  return {
+    data: { runs, segments, brands, questions, answers: inRunOrder(responses.map(toAnswer), runs), sources: [] },
+    failed,
+  };
 }
