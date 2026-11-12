@@ -14,13 +14,17 @@ interface QuestionsPageProps {
   data: DashboardData;
   filters: QuestionFilters;
   onFiltersChange: (filters: QuestionFilters) => void;
-  onOpen: (questionId: string) => void;
+  /** 주차별 현황과 함께 쓰는 선택 회차. null이면 최근 회차. */
+  wave: string | null;
+  onWaveChange: (wave: string) => void;
+  onOpen: (questionId: string, wave: string | null) => void;
 }
 
-export function QuestionsPage({ data, filters, onFiltersChange, onOpen }: QuestionsPageProps) {
+export function QuestionsPage({ data, filters, onFiltersChange, wave, onWaveChange, onOpen }: QuestionsPageProps) {
   const options = useMemo(() => filterOptions(data.questions), [data.questions]);
   const visible = useMemo(() => filterQuestions(data.questions, filters), [data.questions, filters]);
-  const lastWave = answerWaves(data.answers).at(-1);
+  const waves = useMemo(() => answerWaves(data.answers), [data.answers]);
+  const lastWave = wave && waves.includes(wave) ? wave : waves.at(-1);
   const latestAnswers = useMemo(
     () => data.answers.filter((a) => a.wave === lastWave),
     [data.answers, lastWave],
@@ -33,11 +37,21 @@ export function QuestionsPage({ data, filters, onFiltersChange, onOpen }: Questi
       <section className="block">
         <h2 className="page-title">질문셋</h2>
         <p className="note">
-          측정에 쓰는 고정 질문 전체입니다. 질문을 누르면 회차별 응답과 추이를 볼 수 있습니다. 문구와
+          측정에 쓰는 고정 질문 전체입니다. 오른쪽 표시는 고른 회차에서 DJ Bank를 언급한 엔진 수이고, 질문을 누르면
+          그 회차의 응답과 추이를 볼 수 있습니다. 문구와
           ID는 측정 기간 동안 바뀌지 않습니다.
         </p>
 
         <div className="filters">
+          {waves.length > 0 && (
+            <select aria-label="회차" value={lastWave ?? ''} onChange={(e) => onWaveChange(e.target.value)}>
+              {waves.map((id) => (
+                <option key={id} value={id}>
+                  {id} 회차
+                </option>
+              ))}
+            </select>
+          )}
           <select aria-label="수요" value={filters.demand} onChange={(e) => set({ demand: e.target.value })}>
             <option value="">모든 수요</option>
             {options.demands.map((demand) => (
@@ -77,7 +91,7 @@ export function QuestionsPage({ data, filters, onFiltersChange, onOpen }: Questi
               const mine = latestAnswers.filter((a) => a.qid === question.id);
               return (
                 <li key={question.id}>
-                  <button type="button" className="entry" onClick={() => onOpen(question.id)}>
+                  <button type="button" className="entry" onClick={() => onOpen(question.id, lastWave ?? null)}>
                     <span className="entry-id">{question.id}</span>
                     <span className="entry-text">{question.question}</span>
                     <span className="entry-tags">

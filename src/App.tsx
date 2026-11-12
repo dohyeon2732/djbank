@@ -66,7 +66,9 @@ export function App() {
               data={result.data}
               filters={filters}
               onFiltersChange={setFilters}
-              onOpen={(id) => openQuestion(id)}
+              wave={wave}
+              onWaveChange={setWave}
+              onOpen={openQuestion}
             />
           )}
           {page === 'waves' && (
