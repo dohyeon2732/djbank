@@ -68,7 +68,7 @@ const isBusy = (job: JobStatus) => job.state === 'running' || job.state === 'can
 
 const STATE_LABELS: Record<JobStatus['state'], string> = {
   idle: '',
-  running: '실행 중',
+  running: '질문하는 중',
   cancelling: '멈추는 중',
   done: '저장 완료',
   cancelled: '중지됨',
@@ -150,7 +150,7 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
     return (
       <div className="page">
         <section className="block">
-          <h2 className="page-title">측정 실행</h2>
+          <h2 className="page-title">AI에게 질문 실행</h2>
           <div className="empty">
             <p>
               실행은 이 컴퓨터에서 개발 서버로 연 화면에서만 할 수 있습니다. 터미널에서 <code>npm run dev</code>
@@ -166,9 +166,9 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
     return (
       <div className="page">
         <section className="block">
-          <h2 className="page-title">측정 실행</h2>
+          <h2 className="page-title">AI에게 질문 실행</h2>
           <p className="note">
-            실행하면 API 요금이 나가므로 허용된 계정으로 로그인해야 합니다. 로그인은 이 탭을 닫으면 풀립니다.
+            AI에게 질문하면 이용 요금이 나가므로 허용된 계정으로 로그인해야 합니다. 이 탭을 닫으면 로그아웃됩니다.
           </p>
           <form
             className="run-login"
@@ -221,7 +221,7 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
   if (!overview || !form) {
     return (
       <p className="status-line" role="status">
-        {error ?? '실행 설정을 불러오는 중입니다.'}
+        {error ?? '설정을 불러오는 중입니다.'}
       </p>
     );
   }
@@ -293,14 +293,14 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
   return (
     <div className="page">
       <section className="block">
-        <h2 className="page-title">측정 실행</h2>
+        <h2 className="page-title">AI에게 질문 실행</h2>
         <p className="note">
-          질문셋을 엔진에 실제로 묻고 결과를 새 회차로 저장합니다.{' '}
-          {hosted && '응답은 받는 즉시 데이터베이스에 저장되고, 중간에 끊겨도 같은 회차로 이어서 실행할 수 있습니다. '}
+          준비한 질문을 AI 서비스에 실제로 묻고, 받은 답변을 새 회차로 저장합니다.{' '}
+          {hosted && '답변은 받는 즉시 저장되고, 중간에 끊겨도 같은 회차 이름으로 이어서 할 수 있습니다. '}
           {overview.envFile
-            ? `API 키는 이 컴퓨터의 ${overview.envFile} 파일에서 읽고, 화면에는 연결 여부만 표시합니다.`
+            ? `AI 서비스 이용 키는 이 컴퓨터의 ${overview.envFile} 파일에서 읽고, 화면에는 연결됐는지만 보여 줍니다.`
             : hosted
-              ? 'API 키는 서버 환경변수에서 읽고, 화면에는 연결 여부만 표시합니다.'
+              ? 'AI 서비스 이용 키는 서버에 따로 보관하고, 화면에는 연결됐는지만 보여 줍니다.'
               : '키 파일을 찾지 못했습니다. 프로젝트 폴더에 djbank.env 파일을 넣으면 바로 반영됩니다.'}
         </p>
         {hosted && runner.signedInAs() && (
@@ -320,21 +320,21 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
         )}
         {overview.fakeMode && (
           <p className="load-error" role="status">
-            연습 모드입니다. 실제 API를 호출하지 않고 가짜 답변으로 화면과 저장 흐름만 확인합니다.
+            연습 모드입니다. AI에게 실제로 묻지 않고 가짜 답변으로 화면만 확인합니다. 요금은 나가지 않습니다.
           </p>
         )}
 
         <fieldset className="run-form" disabled={busy}>
-          <h3 className="run-heading">엔진</h3>
+          <h3 className="run-heading">질문할 AI 서비스</h3>
           <div className="table-scroll">
             <table className="ledger">
               <thead>
                 <tr>
                   <th>사용</th>
-                  <th>엔진</th>
-                  <th>키</th>
-                  <th>모델</th>
-                  <th>연결 테스트</th>
+                  <th>AI 서비스</th>
+                  <th>이용 키</th>
+                  <th>AI 모델</th>
+                  <th>연결 확인</th>
                 </tr>
               </thead>
               <tbody>
@@ -356,7 +356,7 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
                         {engine.keyPresent ? (
                           <Badge variant="accent">연결됨</Badge>
                         ) : (
-                          <span title={`${engine.keyName} 값이 키 파일에 없습니다`}>
+                          <span title={`${engine.keyName} 값이 등록되지 않았습니다`}>
                             <Badge>키 없음</Badge>
                           </span>
                         )}
@@ -377,7 +377,7 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
                           disabled={result === 'pending'}
                           onClick={() => test(engine.id)}
                         >
-                          {result === 'pending' ? '확인 중' : '테스트'}
+                          {result === 'pending' ? '확인 중' : '연결 확인'}
                         </button>
                         {result && result !== 'pending' && (
                           <span className={`test-result${result.ok ? '' : ' test-result--fail'}`} role="status">
@@ -395,10 +395,11 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
           </div>
 
           <p className="note">
-            Perplexity는 모델 대신 검색 강도 단계를 적습니다: fast, low, medium, high.
+            AI 모델 칸에는 각 서비스가 정한 모델 이름을 적습니다. 비싼 모델일수록 요금이 많이 나갑니다. Perplexity는
+            모델 이름 대신 검색을 얼마나 꼼꼼히 할지 적습니다: fast(빠름), low, medium, high(꼼꼼함).
           </p>
 
-          <h3 className="run-heading">실행 범위</h3>
+          <h3 className="run-heading">얼마나 물을지</h3>
           <div className="run-fields">
             <label className="field">
               <span>회차 이름</span>
@@ -410,19 +411,19 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
               />
             </label>
             <label className="field">
-              <span>시험 실행, 앞에서부터 몇 문항만</span>
+              <span>일부만 먼저 해 보기, 앞에서부터 몇 개</span>
               <input
                 className="input"
                 type="number"
                 min={0}
                 max={overview.questionCount}
-                placeholder={`비우면 전체 ${overview.questionCount}문항`}
+                placeholder={`비우면 전체 ${overview.questionCount}개`}
                 value={limit || ''}
                 onChange={(e) => setLimit(Math.max(0, Number(e.target.value) || 0))}
               />
             </label>
             <label className="field">
-              <span>질문당 반복 횟수</span>
+              <span>같은 질문을 몇 번씩 물을지</span>
               <input
                 className="input"
                 type="number"
@@ -433,7 +434,7 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
               />
             </label>
             <label className="field">
-              <span>엔진별 동시 호출 수</span>
+              <span>한 번에 몇 개씩 물을지</span>
               <input
                 className="input"
                 type="number"
@@ -446,13 +447,13 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
           </div>
 
           <details className="run-rules">
-            <summary>판정 기준</summary>
+            <summary>은행 이름과 자사 페이지를 찾는 기준</summary>
             <p className="note">
-              답변 글에 아래 표기가 있으면 언급으로 셉니다. 대소문자는 구분하지 않습니다. 추천 강도, 감성,
-              치명 환각은 아직 판정하지 않아 화면에 —로 나옵니다.
+              답변에 아래 이름이 들어 있으면 그 은행이 나온 것으로 셉니다. 영어 대문자와 소문자는 같은 글자로 봅니다.
+              추천하는 정도와 심각하게 틀린 답변은 아직 확인하지 않아 화면에 —로 나옵니다.
             </p>
             <label className="field">
-              <span>DJ Bank로 세는 표기, 쉼표로 구분</span>
+              <span>DJ Bank로 세는 이름, 쉼표로 구분</span>
               <input
                 className="input"
                 value={form.ownAliases}
@@ -460,7 +461,7 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
               />
             </label>
             <label className="field">
-              <span>경쟁 은행, 한 줄에 하나씩 "이름: 표기, 표기"</span>
+              <span>다른 은행, 한 줄에 하나씩 "은행 이름: 답변에 나오는 이름, 이름"</span>
               <textarea
                 className="input"
                 rows={Math.max(4, form.competitors.split('\n').length)}
@@ -469,10 +470,10 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
               />
             </label>
             <label className="field">
-              <span>자사 도메인 또는 자사 페이지 주소, 쉼표로 구분. 예: mkt.rememberapp.co.kr/djbank</span>
+              <span>우리 사이트 주소, 쉼표로 구분. AI가 이 주소를 출처로 쓰면 자사 인용으로 셉니다</span>
               <input
                 className="input"
-                placeholder="예: djbank.co.kr"
+                placeholder="예: mkt.rememberapp.co.kr/djbank"
                 value={form.ownDomains}
                 spellCheck={false}
                 onChange={(e) => setForm({ ...form, ownDomains: e.target.value })}
@@ -483,56 +484,56 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
 
         <div className="run-summary">
           <p className="run-count">
-            질문 {questionCount}개 × 엔진 {active.length}곳 × {form.repetitions}회 ={' '}
-            <strong>{num(planned)}건</strong> 호출
+            질문 {questionCount}개 × AI 서비스 {active.length}곳 × {form.repetitions}번 = 모두{' '}
+            <strong>{num(planned)}번</strong> 묻습니다
           </p>
           {overview.replacesMock && (
             <p className="note">
-              지금 화면의 모의 데이터는 archive 폴더로 옮겨지고, 이 실행부터 새로 쌓입니다.
+              지금 화면의 예시 데이터는 따로 보관하고, 이번 결과부터 새로 쌓습니다.
             </p>
           )}
           {limit > 0 && limit < overview.questionCount && (
             <p className="note">
-              시험 실행입니다. 일부 문항만 물어 이 회차로 저장합니다.{' '}
+              질문 일부만 먼저 물어 이 회차로 저장합니다.{' '}
               {hosted
-                ? '나중에 같은 회차 이름으로 전체를 실행하면 나머지 문항만 추가로 묻습니다.'
-                : '나중에 같은 회차 이름으로 전체를 다시 실행하면 이 값을 덮어씁니다.'}
+                ? '나중에 같은 회차 이름으로 전체를 하면 남은 질문만 더 묻습니다.'
+                : '나중에 같은 회차 이름으로 전체를 다시 하면 이 결과를 새 결과로 바꿉니다.'}
             </p>
           )}
           {waveTaken && (
             <p className="note">
               {wave.trim()} 회차가 이미 있습니다.{' '}
               {hosted
-                ? '실행하면 받아 둔 응답은 그대로 두고 빠진 문항만 추가로 묻습니다.'
-                : '실행하면 그 회차 값을 새 값으로 바꿉니다.'}
+                ? '시작하면 받아 둔 답변은 그대로 두고 빠진 질문만 더 묻습니다.'
+                : '시작하면 그 회차 결과를 새 결과로 바꿉니다.'}
             </p>
           )}
           {unfinished && (
             <p className="note">
-              {unfinished.wave} 회차는 응답 {unfinished.answered}건을 받은 채 멈춰 있습니다. 실행하면 이어서 진행합니다.{' '}
+              {unfinished.wave} 회차는 답변 {unfinished.answered}건을 받은 채 멈춰 있습니다. 시작하면 이어서 묻습니다.{' '}
               <button
                 type="button"
                 className="link-button"
                 disabled={busy}
                 onClick={() => run(async () => apply(await runner.discard(unfinished.wave)))}
               >
-                받아 둔 응답 버리기
+                받아 둔 답변 지우기
               </button>
             </p>
           )}
           {active.length === 0 && (
-            <p className="note">실행할 엔진이 없습니다. 키가 연결된 엔진을 하나 이상 켜세요.</p>
+            <p className="note">질문할 AI 서비스가 없습니다. 이용 키가 연결된 서비스를 하나 이상 켜세요.</p>
           )}
 
           {confirming ? (
-            <div className="run-confirm" role="alertdialog" aria-label="실행 확인">
+            <div className="run-confirm" role="alertdialog" aria-label="시작 확인">
               <p>
                 {overview.fakeMode
-                  ? `연습 모드로 ${num(planned)}건을 가짜 답변으로 채웁니다.`
-                  : `실제 API를 ${num(planned)}건 호출하며, 엔진마다 요금이 나갑니다.`}
+                  ? `연습 모드로 ${num(planned)}건을 가짜 답변으로 채웁니다. 요금은 나가지 않습니다.`
+                  : `AI에게 실제로 ${num(planned)}번 묻습니다. AI 서비스마다 이용 요금이 나갑니다.`}
               </p>
               <button type="button" className="button button--primary" onClick={start}>
-                {num(planned)}건 실행
+                {num(planned)}번 묻기
               </button>
               <button type="button" className="button" onClick={() => setConfirming(false)}>
                 취소
@@ -546,7 +547,7 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
                 disabled={busy || planned === 0 || saving}
                 onClick={() => setConfirming(true)}
               >
-                실행 시작
+                질문 시작
               </button>
               <button
                 type="button"
@@ -572,18 +573,20 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
             {job.wave} 회차, {STATE_LABELS[job.state]}
           </h2>
           <p className="note" role="status">
-            {job.message ?? '엔진별로 차례대로 묻고 있습니다. 이 탭을 닫아도 실행은 계속됩니다.'}
+            {job.message ?? 'AI 서비스마다 차례대로 묻고 있습니다. 이 탭을 닫아도 계속 진행됩니다.'}
           </p>
           <div className="table-scroll">
             <table className="ledger">
               <thead>
                 <tr>
-                  <th>엔진</th>
-                  <th>모델</th>
+                  <th>AI 서비스</th>
+                  <th>AI 모델</th>
                   <th>진행</th>
-                  <th className="num">DJ 언급</th>
+                  <th className="num">DJ Bank가 나온 답변</th>
                   <th className="num">실패</th>
-                  <th className="num">토큰, 입력 / 출력</th>
+                  <th className="num" title="요금 계산의 기준이 되는 글자 양(토큰)">
+                    사용량, 보낸 글 / 받은 글
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -624,7 +627,7 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
                 className="button"
                 onClick={() => (hosted ? abort.current?.abort() : run(async () => setJob(await runner.cancel())))}
               >
-                실행 중지
+                멈추기
               </button>
             )}
             {job.state === 'done' && (

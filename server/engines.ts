@@ -244,6 +244,9 @@ const callPerplexity: EngineCaller = ({ question, model, key, webSearch, signal 
  * 검색이 길어지면 pause_turn으로 멈추므로 이어서 다시 보냅니다.
  * 안전 분류기가 거절하면 서버 쪽 폴백 모델이 대신 답하고, 그 모델 이름이 기록됩니다.
  */
+const SEARCH_FIRST =
+  '답하기 전에 반드시 web_search 도구로 질문과 관련된 최신 정보를 검색하세요. 검색 결과를 근거로 답하고, 근거로 쓴 출처를 인용하세요.';
+
 const askClaude: EngineCaller = async ({ question, model, key, webSearch, signal }) => {
   // 주소를 고정해, 셸에 ANTHROPIC_BASE_URL 같은 환경변수가 있어도 키가 공식 API로만 갑니다.
   const client = new Anthropic({
@@ -273,6 +276,8 @@ const askClaude: EngineCaller = async ({ question, model, key, webSearch, signal
           ...(fallback && { betas: ['server-side-fallback-2026-07-01' as const], fallbacks: 'default' as const }),
           output_config: { effort: webSearch ? 'medium' : 'low' },
           ...(webSearch && {
+            // 저렴한 모델은 시키지 않으면 검색 없이 아는 내용으로만 답해, 검색을 먼저 하도록 지시합니다.
+            system: SEARCH_FIRST,
             tools: [
               {
                 type: 'web_search_20260209',

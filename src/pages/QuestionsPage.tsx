@@ -39,7 +39,7 @@ export function QuestionsPage({ data, filters, onFiltersChange, wave, onWaveChan
         <h2 className="page-title">질문셋</h2>
         <p className="note">
           측정에 쓰는 고정 질문 전체입니다. 오른쪽 표시는 고른 회차에서 DJ Bank를 말한 AI 서비스 수이고, 질문을 누르면
-          그 회차의 응답과 추이를 볼 수 있습니다. 문구와
+          그 회차의 답변과 변화를 볼 수 있습니다. 문구와
           ID는 측정 기간 동안 바뀌지 않습니다.
         </p>
 
@@ -75,7 +75,7 @@ export function QuestionsPage({ data, filters, onFiltersChange, wave, onWaveChan
             onChange={(e) => set({ search: e.target.value })}
           />
           <span className="count" role="status">
-            {visible.length} / {data.questions.length}문항
+            {visible.length} / {data.questions.length}개
           </span>
         </div>
 

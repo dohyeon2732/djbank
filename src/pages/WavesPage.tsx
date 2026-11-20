@@ -9,7 +9,7 @@ function HitCell({ answers, engine }: { answers: Answer[]; engine: string }) {
   const name = ENGINE_NAMES[engine] ?? engine;
   if (answers.length === 0) {
     return (
-      <td className="cell cell--none" aria-label={`${name} 응답 없음`}>
+      <td className="cell cell--none" aria-label={`${name} 답변 없음`}>
         –
       </td>
     );
@@ -46,7 +46,7 @@ export function WavesPage({ data, wave, onWaveChange, onOpen }: WavesPageProps) 
   return (
     <div className="page">
       <section className="block">
-        <h2 className="page-title">주차별 질문과 응답 현황</h2>
+        <h2 className="page-title">주차별 질문과 답변 현황</h2>
         <p className="note">
           회차를 고르면 질문마다 네 AI 서비스가 DJ Bank를 말했는지가 표로 나옵니다. 질문 ID를 누르면 상세가
           열립니다.
@@ -66,7 +66,7 @@ export function WavesPage({ data, wave, onWaveChange, onOpen }: WavesPageProps) 
           </select>
           <span className="count" role="status">
             {current
-              ? `응답 ${num(answers.length)}건${run ? `, 실패 ${num(run.failed)}건` : ''}. 질문 ${questionIds.size}개 중 ${hitCount}개에서 AI 서비스 1곳 이상이 DJ Bank를 말했습니다.`
+              ? `답변 ${num(answers.length)}건${run ? `, 실패 ${num(run.failed)}건` : ''}. 질문 ${questionIds.size}개 중 ${hitCount}개에서 AI 서비스 1곳 이상이 DJ Bank를 말했습니다.`
               : '측정 전'}
           </span>
         </div>

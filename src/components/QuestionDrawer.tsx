@@ -19,7 +19,7 @@ function EngineAnswer({ engine, answers }: { engine: string; answers: Answer[] }
   const isHit = answers.some((a) => a.mention);
   const excerpt = first.excerpt
     ? `${first.excerpt}${first.excerpt.length >= EXCERPT_LIMIT ? '…' : ''}`
-    : '이 응답은 발췌본이 저장되지 않았습니다.';
+    : '이 답변은 내용이 저장되지 않았습니다.';
 
   return (
     <article className="answer">

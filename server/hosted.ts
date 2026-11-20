@@ -116,7 +116,7 @@ export async function handleDb(
 
       case 'POST test': {
         const engine = ENGINE_IDS.find((id) => id === body.engine);
-        if (!engine) return reply(400, { error: '알 수 없는 엔진입니다.' });
+        if (!engine) return reply(400, { error: '알 수 없는 AI 서비스입니다.' });
         return reply(200, await testConnection(engine, normalizeConfig(body.config), keys.keys[engine]));
       }
 
@@ -150,8 +150,8 @@ export async function handleDb(
         const engine = ENGINE_IDS.find((id) => id === body.engine);
         const question = (await cachedQuestions(db)).find((q) => q.id === body.qid);
         const key = engine ? keys.keys[engine] : undefined;
-        if (!engine || !question) return reply(400, { error: '알 수 없는 엔진이나 질문입니다.' });
-        if (!key && !isFakeMode()) return reply(400, { error: '이 엔진의 키가 등록되어 있지 않습니다.' });
+        if (!engine || !question) return reply(400, { error: '알 수 없는 AI 서비스이거나 질문입니다.' });
+        if (!key && !isFakeMode()) return reply(400, { error: '이 AI 서비스의 이용 키가 등록되어 있지 않습니다.' });
         const wave = parseWave(body.wave);
         let scored;
         try {
@@ -203,7 +203,7 @@ export async function handleDb(
       case 'POST finish': {
         const wave = parseWave(body.wave);
         const rows = await selectAll<ResponseRow>(db, 'responses', `select=*&${eq('wave', wave)}`);
-        if (rows.length === 0) return reply(400, { error: '저장된 응답이 없어 회차를 마칠 수 없습니다.' });
+        if (rows.length === 0) return reply(400, { error: '저장된 답변이 없어 회차를 마칠 수 없습니다.' });
         const config = normalizeConfig(body.config);
         const answers: ScoredAnswer[] = rows.map(({ own_cites, ...row }) => ({ ...row, ownCites: own_cites }));
         const result = aggregate(wave, await cachedQuestions(db), answers, config.ownBrand.name, config.ownDomains.length > 0);

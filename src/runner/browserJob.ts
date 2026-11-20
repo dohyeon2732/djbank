@@ -25,7 +25,7 @@ export async function runInBrowser(input: BrowserJobInput): Promise<void> {
     startedAt: new Date().toISOString(),
     finishedAt: null,
     engines: [],
-    message: '이 탭이 질문을 한 건씩 보내고 있습니다. 응답은 받는 즉시 저장됩니다.',
+    message: '질문을 하나씩 보내고 있습니다. 답변은 받는 즉시 저장되니, 끝날 때까지 이 탭을 열어 두세요.',
   };
   const progress = new Map<EngineId, EngineProgress>();
   const publish = () => onUpdate({ ...status, engines: [...progress.values()].map((p) => ({ ...p })) });
@@ -63,7 +63,7 @@ export async function runInBrowser(input: BrowserJobInput): Promise<void> {
       mine.mentioned += row.mention ? 1 : 0;
       resumed += 1;
     }
-    if (resumed > 0) status.message = `받아 둔 응답 ${resumed}건에 이어서 진행합니다. 응답은 받는 즉시 저장됩니다.`;
+    if (resumed > 0) status.message = `받아 둔 답변 ${resumed}건에 이어서 묻습니다. 답변은 받는 즉시 저장됩니다.`;
     publish();
 
     await Promise.all(
@@ -96,10 +96,10 @@ export async function runInBrowser(input: BrowserJobInput): Promise<void> {
     status.finishedAt = new Date().toISOString();
     if (signal.aborted) {
       status.state = 'cancelled';
-      status.message = `실행을 멈췄습니다. 받은 응답 ${succeeded}건은 저장돼 있습니다. ${wave} 회차로 다시 실행하면 이어서 진행합니다.`;
+      status.message = `멈췄습니다. 받은 답변 ${succeeded}건은 저장돼 있습니다. ${wave} 회차로 다시 시작하면 이어서 묻습니다.`;
     } else if (succeeded === 0) {
       status.state = 'failed';
-      status.message = '성공한 호출이 없습니다. 엔진별 오류를 확인하세요.';
+      status.message = '답변을 하나도 받지 못했습니다. AI 서비스별 오류를 확인하세요.';
     } else {
       status.message = '집계를 만드는 중입니다.';
       publish();
@@ -111,7 +111,7 @@ export async function runInBrowser(input: BrowserJobInput): Promise<void> {
   } catch (error) {
     status.state = 'failed';
     status.finishedAt = new Date().toISOString();
-    status.message = `실행이 중단됐습니다: ${(error as Error).message}. 받은 응답은 저장돼 있어, 같은 회차로 다시 실행하면 이어집니다.`;
+    status.message = `중간에 끊겼습니다: ${(error as Error).message}. 받은 답변은 저장돼 있어, 같은 회차로 다시 시작하면 이어집니다.`;
   }
   publish();
 }
