@@ -44,8 +44,8 @@ export const DEFAULT_CONFIG: RunnerConfig = {
     { name: '케이뱅크', aliases: ['케이뱅크', '케이 뱅크', 'K뱅크', 'Kbank'] },
     { name: '토스뱅크', aliases: ['토스뱅크', '토스 뱅크'] },
   ],
-  // 도메인 또는 특정 경로(예: mkt.rememberapp.co.kr/djbank). 리멤버 사이트 전체를 자사로 봅니다.
-  ownDomains: ['rememberapp.co.kr', 'remember.co.kr'],
+  // 도메인 또는 특정 경로(예: mkt.rememberapp.co.kr/djbank). 리멤버 앱 사이트와 제주은행 홈페이지를 자사로 봅니다.
+  ownDomains: ['rememberapp.co.kr', 'jejubank.co.kr'],
 };
 
 export const LIMITS = {
