@@ -69,7 +69,7 @@ export function QuestionsPage({ data, filters, onFiltersChange, wave, onWaveChan
           <input
             type="search"
             aria-label="검색"
-            placeholder="질문, 상품, ID 검색"
+            placeholder="질문, 상품, 콘텐츠, ID 검색"
             value={filters.search}
             onChange={(e) => set({ search: e.target.value })}
           />
@@ -97,6 +97,7 @@ export function QuestionsPage({ data, filters, onFiltersChange, wave, onWaveChan
                     <span className="entry-tags">
                       <Badge>{question.demand}</Badge>
                       <Badge>{`${question.category}형`}</Badge>
+                      {question.group && <Badge>{question.group}</Badge>}
                     </span>
                     <span className="entry-product">{question.product}</span>
                     <span className="entry-hits">

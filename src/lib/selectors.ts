@@ -123,7 +123,7 @@ export function filterQuestions(questions: Question[], filters: QuestionFilters)
     (q) =>
       (!filters.demand || q.demand === filters.demand) &&
       (!filters.category || q.category === filters.category) &&
-      (!needle || `${q.id} ${q.question} ${q.product}`.toLowerCase().includes(needle)),
+      (!needle || `${q.id} ${q.question} ${q.product} ${q.group}`.toLowerCase().includes(needle)),
   );
 }
 

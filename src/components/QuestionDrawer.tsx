@@ -62,8 +62,9 @@ function QuestionDetail({
         <b>{question.id}</b>
         <Badge>{question.demand}</Badge>
         <Badge>{`${question.category}형`}</Badge>
-        <Badge>{question.release}</Badge>
-        <Badge>{question.speaker}</Badge>
+        {question.release && <Badge>{question.release}</Badge>}
+        {question.speaker && <Badge>{question.speaker}</Badge>}
+        {question.group && <Badge>{question.group}</Badge>}
       </div>
       <h3 className="drawer-question">{question.question}</h3>
       <dl className="drawer-facts">

@@ -23,8 +23,13 @@ const WAVE_PATTERN = /^[A-Za-z0-9_-]{1,20}$/;
 const isReal = (run: Run) => run.mode === REAL_MODE;
 
 export function nextWaveName(runs: Run[]): string {
+  // 가장 큰 번호 다음을 씁니다. 중간 회차를 지워도 이름이 과거 회차보다 앞서지 않습니다.
+  const numbers = runs.filter(isReal).flatMap((r) => {
+    const match = /^W(\d+)$/.exec(r.wave);
+    return match ? [Number(match[1])] : [];
+  });
   const taken = new Set(runs.map((r) => r.wave));
-  let index = runs.filter(isReal).length + 1;
+  let index = Math.max(0, ...numbers) + 1;
   while (taken.has(`W${index}`)) index += 1;
   return `W${index}`;
 }
