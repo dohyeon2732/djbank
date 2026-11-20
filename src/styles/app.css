@@ -1046,10 +1046,116 @@ input {
   white-space: pre-wrap;
 }
 
+.answer-preview {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--ink-soft);
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.answer-toggle {
+  margin-top: 6px;
+  font-size: var(--text-sm);
+}
+
+/* AI가 쓴 서식(굵은 글씨, 목록, 표)을 읽기 좋게 보여 줍니다. */
+.answer-rich {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.answer-rich > * + * {
+  margin-top: 10px;
+}
+
+.answer-rich :is(h1, h2, h3, h4, h5, h6) {
+  margin-top: 16px;
+  font-size: var(--text-md);
+  font-weight: 700;
+}
+
+.answer-rich :is(ul, ol) {
+  padding-left: 22px;
+}
+
+.answer-rich ul {
+  list-style: disc;
+}
+
+.answer-rich ol {
+  list-style: decimal;
+}
+
+.answer-rich strong {
+  font-weight: 700;
+}
+
+.answer-rich li + li,
+.answer-rich li > :is(ul, ol) {
+  margin-top: 4px;
+}
+
+.answer-rich a {
+  color: var(--series-mention, inherit);
+  text-decoration: underline;
+}
+
+.answer-rich hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+.answer-rich blockquote {
+  border-left: 3px solid var(--line);
+  padding-left: 12px;
+  color: var(--ink-soft);
+}
+
+.answer-rich code {
+  font-size: 0.92em;
+}
+
+.answer-rich table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.answer-rich :is(th, td) {
+  border: 1px solid var(--line);
+  padding: 4px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
 .answer-brands {
   margin-top: 6px;
   color: var(--ink-soft);
   font-size: var(--text-xs);
+}
+
+.answer-cites {
+  margin-top: 8px;
+  font-size: var(--text-xs);
+}
+
+.answer-cites summary {
+  cursor: pointer;
+  color: var(--ink-soft);
+}
+
+.answer-cites ol {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
+
+.answer-cites li {
+  margin-top: 2px;
+  overflow-wrap: anywhere;
 }
 
 /* ---- 실행 탭 ---- */

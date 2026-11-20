@@ -3,6 +3,7 @@ import type {
   BrandCount,
   DashboardData,
   DataFile,
+  FullAnswer,
   Question,
   RawAnswer,
   Run,
@@ -115,4 +116,18 @@ export async function loadDashboard(): Promise<LoadResult> {
     data: { runs, segments, brands, questions, answers: inRunOrder(responses.map(toAnswer), runs), sources: [] },
     failed,
   };
+}
+
+/** 질문 하나의 답변 전문. 서버가 없으면 null을 돌려주고, 화면은 저장해 둔 앞부분만 보여 줍니다. */
+export async function loadFullAnswers(wave: string, qid: string): Promise<FullAnswer[] | null> {
+  try {
+    const query = new URLSearchParams({ wave, qid });
+    const response = await fetch(`/api/data?${query}`, { cache: 'no-store' });
+    const type = response.headers.get('content-type') ?? '';
+    if (!response.ok || !type.includes('application/json')) return null;
+    const rows: unknown = await response.json();
+    return Array.isArray(rows) ? (rows as FullAnswer[]) : null;
+  } catch {
+    return null;
+  }
 }

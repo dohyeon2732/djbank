@@ -1,4 +1,4 @@
-import type { BrandCount, DashboardData, Question, RawAnswer, Run, Segment } from '../src/types.js';
+import type { BrandCount, DashboardData, FullAnswer, Question, RawAnswer, Run, Segment } from '../src/types.js';
 import { summarizeSources } from './sources.js';
 import type { CitedAnswer } from './sources.js';
 import { ENGINE_IDS } from '../src/runner/types.js';
@@ -76,6 +76,24 @@ export async function loadDashboardData(db: Db): Promise<Omit<DashboardData, 'an
     loadConfig(db),
   ]);
   return { runs, questions, segments, brands, responses, sources: summarizeSources(cited, config.ownDomains) };
+}
+
+/** 질문 하나에 대한 한 회차의 답변 전문과 출처. 질문 상세를 열 때만 읽습니다. */
+export async function loadAnswerTexts(db: Db, wave: string, qid: string): Promise<FullAnswer[]> {
+  const rows = await selectAll<{ engine: string; rep: number; answer_text: string; citations: FullAnswer['citations'] | null }>(
+    db,
+    'response_raw',
+    `select=engine,rep,answer_text,citations&${eq('wave', wave)}&${eq('qid', qid)}&order=engine.asc,rep.asc`,
+  );
+  return rows.map((row) => ({ engine: row.engine, rep: row.rep, text: row.answer_text, citations: row.citations ?? [] }));
+}
+
+/** /api/data 요청 하나를 처리합니다. wave와 qid가 있으면 그 질문의 답변 전문을, 없으면 대시보드 전체를 돌려줍니다. */
+export function loadForRequest(db: Db, url: string | undefined): Promise<unknown> {
+  const params = new URL(url ?? '/', 'http://localhost').searchParams;
+  const wave = params.get('wave');
+  const qid = params.get('qid');
+  return wave && qid ? loadAnswerTexts(db, wave, qid) : loadDashboardData(db);
 }
 
 async function overview(db: Db, keys: LoadedKeys): Promise<RunnerOverview> {

@@ -112,3 +112,11 @@ export interface QuestionFilters {
 }
 
 export const EMPTY_FILTERS: QuestionFilters = { demand: '', category: '', search: '' };
+
+/** 답변 하나의 전문과 AI가 참고한 출처. 질문 상세를 열 때 따로 읽습니다. */
+export interface FullAnswer {
+  engine: string;
+  rep: number;
+  text: string;
+  citations: { url: string; title?: string | null }[];
+}

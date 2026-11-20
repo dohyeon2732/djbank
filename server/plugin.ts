@@ -7,7 +7,7 @@ import { loadConfig, normalizeConfig, saveConfig } from './config.js';
 import { buildOverview, testConnection } from './core.js';
 import { readRows } from './files.js';
 import { isFakeMode } from './engines.js';
-import { handleDb, loadDashboardData } from './hosted.js';
+import { handleDb, loadForRequest } from './hosted.js';
 import { cancelRun, getStatus, startRun } from './job.js';
 import { loadKeys, readEnvFile } from './keys.js';
 import { dbFromEnv } from './supabase.js';
@@ -67,12 +67,12 @@ export function runnerApi(): Plugin {
         isFakeMode() && !process.env.DJBANK_ENV_FILE ? null : dbFromEnv(readEnvFile(root).values);
 
       // 대시보드 데이터. DB 설정이 없으면 404로 답해 화면이 public/data의 JSON을 읽게 합니다.
-      server.middlewares.use('/api/data', (_req, res) => {
+      server.middlewares.use('/api/data', (req, res) => {
         void (async () => {
           const db = database();
           if (!db) return send(res, 404, { error: 'Supabase 설정이 없습니다.' });
           try {
-            return send(res, 200, await loadDashboardData(db));
+            return send(res, 200, await loadForRequest(db, req.url));
           } catch (error) {
             return send(res, 502, { error: (error as Error).message });
           }
