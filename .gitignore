@@ -11,3 +11,4 @@ dist
 
 # 엔진 응답 원문 보관(실행 탭이 회차마다 씁니다)
 archive/
+*.tsbuildinfo
