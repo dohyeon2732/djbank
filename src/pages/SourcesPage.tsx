@@ -4,8 +4,8 @@ import { BarList } from '../components/BarList';
 import type { BarRow } from '../components/BarList';
 import { num, pct } from '../lib/format';
 import { ENGINES, ENGINE_NAMES, OWN_BRAND, waveOrder } from '../lib/selectors';
-import { KIND_NAMES, KIND_ORDER } from '../lib/sources';
-import type { SourceKind } from '../lib/sources';
+import { BANK_TIERS, KIND_NAMES, KIND_ORDER } from '../lib/sources';
+import type { BankTier, SourceKind } from '../lib/sources';
 import type { DashboardData, SourceRow } from '../types';
 
 /** 금융사 단위로 묶어 볼 유형. */
@@ -15,6 +15,7 @@ interface Site {
   domain: string;
   owner: string;
   kind: SourceKind;
+  tier?: BankTier;
   cites: number;
   answers: number;
   byEngine: Record<string, number>;
@@ -30,6 +31,7 @@ function toSites(rows: SourceRow[]): Site[] {
       domain: row.domain,
       owner: row.owner,
       kind: row.kind,
+      tier: row.tier,
       cites: 0,
       answers: 0,
       byEngine: {},
@@ -67,6 +69,30 @@ function KindChart({ sites, total }: { sites: Site[]; total: number }) {
         display: num(cites),
         muted: kind === 'other',
         tip: `${KIND_NAMES[kind]}, 사이트 ${mine.length}곳, 인용 ${num(cites)}건, 전체의 ${pct(cites / total)}`,
+      },
+    ];
+  });
+  return <BarList rows={rows} max={Math.max(...rows.map((r) => r.value)) * 1.05} />;
+}
+
+/** 은행 공식 사이트를 시중은행, 지방은행, 인터넷전문은행 등으로 나눈 인용 수. */
+function TierChart({ sites }: { sites: Site[] }) {
+  const banks = sites.filter((s) => s.kind === 'bank');
+  const total = sum(banks.map((s) => s.cites));
+  if (total === 0) return <p className="note">이 회차에는 은행 공식 사이트 인용이 없습니다.</p>;
+  const rows: BarRow[] = BANK_TIERS.flatMap((tier) => {
+    const mine = banks.filter((s) => s.tier === tier);
+    const cites = sum(mine.map((s) => s.cites));
+    if (cites === 0) return [];
+    const names = [...new Set(mine.map((s) => s.owner))].join(', ');
+    return [
+      {
+        key: tier,
+        label: tier,
+        value: cites,
+        display: num(cites),
+        muted: tier === '기타 은행',
+        tip: `${tier}, 인용 ${num(cites)}건, 은행 공식 인용의 ${pct(cites / total)}. ${names}`,
       },
     ];
   });
@@ -121,7 +147,8 @@ interface SourcesPageProps {
 export function SourcesPage({ data, wave, onWaveChange }: SourcesPageProps) {
   const waves = useMemo(() => waveOrder(data), [data]);
   const current = wave && waves.includes(wave) ? wave : (waves.at(-1) ?? null);
-  const [kind, setKind] = useState<SourceKind | ''>('');
+  // 유형 필터. 은행 세부 분류는 'bank:시중은행' 형태로 담습니다.
+  const [kind, setKind] = useState('');
   const [open, setOpen] = useState<string | null>(null);
 
   const sites = useMemo(
@@ -134,7 +161,12 @@ export function SourcesPage({ data, wave, onWaveChange }: SourcesPageProps) {
   const bankCites = sum(sites.filter((s) => s.kind === 'bank' || s.kind === 'own').map((s) => s.cites));
   const ownCites = sum(sites.filter((s) => s.kind === 'own').map((s) => s.cites));
   const kinds = KIND_ORDER.filter((k) => sites.some((s) => s.kind === k));
-  const shown = kind ? sites.filter((s) => s.kind === kind) : sites;
+  const tiers = BANK_TIERS.filter((t) => sites.some((s) => s.kind === 'bank' && s.tier === t));
+  const shown = !kind
+    ? sites
+    : kind.startsWith('bank:')
+      ? sites.filter((s) => s.kind === 'bank' && s.tier === kind.slice(5))
+      : sites.filter((s) => s.kind === kind);
   const columns = 5 + ENGINES.length;
 
   if (data.sources.length === 0) {
@@ -156,8 +188,8 @@ export function SourcesPage({ data, wave, onWaveChange }: SourcesPageProps) {
       <section className="block">
         <h2 className="page-title">AI가 답변에 인용한 사이트</h2>
         <p className="note">
-          엔진이 웹검색으로 참고한 출처 주소를 사이트 단위로 묶고, 어느 은행이나 매체의 사이트인지 규칙으로
-          분류했습니다. 한 답변 안의 같은 주소는 한 번만 셉니다.
+          AI가 답하면서 참고한 인터넷 주소를 사이트별로 모으고, 어느 은행이나 언론사의 사이트인지 나눴습니다.
+          한 답변 안에서 같은 주소는 한 번만 셉니다.
         </p>
 
         <div className="filters">
@@ -180,14 +212,16 @@ export function SourcesPage({ data, wave, onWaveChange }: SourcesPageProps) {
         <div className="columns">
           <section className="block">
             <h2>출처 유형별</h2>
-            <p className="note">유형별 인용 수입니다. 막대에 올리면 전체에서 차지하는 비율이 나옵니다.</p>
+            <p className="note">어떤 종류의 사이트가 출처로 많이 쓰였는지입니다. 막대에 마우스를 올리면 비율이 나옵니다.</p>
             <KindChart sites={sites} total={total} />
+            <h2 className="block-subhead">은행 종류별</h2>
+            <p className="note">은행 공식 사이트 인용을 시중은행, 지방은행, 인터넷전문은행 등으로 나눴습니다.</p>
+            <TierChart sites={sites} />
           </section>
           <section className="block">
             <h2>금융사별</h2>
             <p className="note">
-              은행, 저축은행, 증권사 등 금융사 사이트의 인용 수입니다. DJ Bank는 실행 탭에 자사 도메인을 넣어야
-              집계됩니다.
+              은행, 저축은행, 증권사 같은 금융회사 사이트가 출처로 쓰인 횟수입니다.
             </p>
             <OwnerChart sites={sites} />
           </section>
@@ -197,19 +231,26 @@ export function SourcesPage({ data, wave, onWaveChange }: SourcesPageProps) {
       <section className="block">
         <h2>사이트별 정리</h2>
         <p className="note">
-          행을 누르면 인용된 페이지와 질문이 펼쳐집니다. ChatGPT와 Claude는 답변에 인용 표시를 붙인 출처만,
-          Perplexity는 검색해 온 결과 전체를, Gemini는 검색 근거 목록을 돌려주므로 엔진 사이 숫자를 그대로
-          비교하면 안 됩니다.
+          행을 누르면 출처로 쓰인 페이지와 질문이 펼쳐집니다. AI 서비스마다 출처를 알려 주는 방식이 달라서
+          (Perplexity는 검색한 결과 전부, ChatGPT는 답변에 표시한 것만) 서비스끼리 숫자를 그대로 비교하면 안
+          됩니다.
         </p>
 
         <div className="filters">
-          <select aria-label="출처 유형" value={kind} onChange={(event) => setKind(event.target.value as SourceKind | '')}>
+          <select aria-label="출처 유형" value={kind} onChange={(event) => setKind(event.target.value)}>
             <option value="">모든 유형</option>
-            {kinds.map((k) => (
+            {kinds.flatMap((k) => [
               <option key={k} value={k}>
                 {KIND_NAMES[k]}
-              </option>
-            ))}
+              </option>,
+              ...(k === 'bank'
+                ? tiers.map((t) => (
+                    <option key={t} value={`bank:${t}`}>
+                      {`은행 공식 · ${t}`}
+                    </option>
+                  ))
+                : []),
+            ])}
           </select>
           <span className="count" role="status">
             사이트 {num(shown.length)}곳, 인용 {num(sum(shown.map((s) => s.cites)))}건
@@ -245,7 +286,9 @@ export function SourcesPage({ data, wave, onWaveChange }: SourcesPageProps) {
                       </td>
                       <td className="nowrap">{site.domain || '—'}</td>
                       <td>
-                        <Badge variant={site.kind === 'own' ? 'accent' : undefined}>{KIND_NAMES[site.kind]}</Badge>
+                        <Badge variant={site.kind === 'own' ? 'accent' : undefined}>
+                          {site.tier ? `${KIND_NAMES[site.kind]} · ${site.tier}` : KIND_NAMES[site.kind]}
+                        </Badge>
                       </td>
                       {ENGINES.map((engine) => (
                         <td key={engine} className={`num${site.byEngine[engine] ? '' : ' cell--none'}`}>

@@ -58,15 +58,15 @@ function Hero({ data }: { data: DashboardData }) {
       <div className="hero-head">
         <h2 id="hero-title" className="hero-title">
           {mention
-            ? `측정 질문 ${latestRun(data)?.questions ?? data.questions.length}개에 대한 AI 답변 ${num(mention.n)}건 중 ${num(mention.k)}건이 DJ Bank를 언급했습니다.`
-            : '아직 측정된 회차가 없습니다.'}
+            ? `AI에게 질문 ${latestRun(data)?.questions ?? data.questions.length}개를 물어 받은 답변 ${num(mention.n)}건 중 ${num(mention.k)}건에 DJ Bank가 나왔습니다.`
+            : '아직 측정한 회차가 없습니다.'}
         </h2>
         <Seal run={latestRun(data)} />
       </div>
       <p className="hero-sub">
-        {share && `은행 이름이 나온 답변에서 DJ Bank의 몫은 ${pct(share.value)}입니다. `}
-        비교군을 따로 두지 않아 회차 사이 변화에는 엔진 업데이트나 시장 흐름도 섞여 있습니다. 점유율이
-        함께 오르는지로 DJ Bank만의 변화인지 가늠합니다.
+        {share && `AI가 은행 이름을 말한 횟수 가운데 DJ Bank는 ${pct(share.value)}입니다. `}
+        회차마다 숫자가 달라지는 데에는 AI 서비스 업데이트 같은 바깥 이유도 섞여 있습니다. 아래 두 비율이
+        함께 오르면 DJ Bank가 실제로 더 자주 나온 것으로 봅니다.
       </p>
       <HeroRuler
         mention={mention}
@@ -85,35 +85,35 @@ function Metrics({ data }: { data: DashboardData }) {
   return (
     <dl className="metrics" aria-label="핵심 지표">
       <div>
-        <dt>언급 순위 평균</dt>
+        <dt>DJ Bank가 나오는 순서</dt>
         <dd className="metric-value">{fixed2(total?.rank_avg)}</dd>
-        <dd className="metric-sub">0에서 3, 3이 첫 번째 언급</dd>
+        <dd className="metric-sub">3점이면 은행 중 가장 먼저, 1점이면 세 번째 이후</dd>
       </div>
       <div>
-        <dt>추천 강도 평균</dt>
+        <dt>추천하는 정도</dt>
         <dd className="metric-value">{fixed2(total?.rec_avg)}</dd>
         <dd className="metric-sub">
-          {total && total.rec_avg == null ? 'AI 채점 단계가 생기면 채워집니다' : '0에서 3, 3이 가장 강한 추천'}
+          {total && total.rec_avg == null ? 'AI 채점 기능을 붙이면 표시됩니다' : '0점에서 3점, 3점이 가장 강한 추천'}
         </dd>
       </div>
       <div>
-        <dt>치명 환각</dt>
+        <dt>심각하게 틀린 답변</dt>
         <dd className={`metric-value${critical ? ' metric-value--alert' : ''}`}>
           {critical == null ? '—' : `${num(critical)}건`}
         </dd>
         <dd className="metric-sub">
           {total && critical == null
-            ? 'AI 채점 단계가 생기면 채워집니다'
-            : `${critical ? '확인 필요. ' : ''}운영주체, 지위, 미존재 상품 오류`}
+            ? 'AI 채점 기능을 붙이면 표시됩니다'
+            : `${critical ? '확인 필요. ' : ''}없는 상품을 지어내는 등 사실과 다른 답변`}
         </dd>
       </div>
       <div>
-        <dt>자사 인용 점유율</dt>
+        <dt>DJ Bank 페이지를 출처로 쓴 비율</dt>
         <dd className="metric-value">{pct(total?.own_share)}</dd>
         <dd className="metric-sub">
           {total && total.own_share == null && total.total_cit
-            ? '실행 탭에 자사 도메인을 넣으면 계산됩니다'
-            : '응답이 인용한 출처 중 자사 도메인'}
+            ? '실행 탭에 자사 사이트 주소를 넣으면 계산됩니다'
+            : 'AI가 참고한 출처 중 DJ Bank 페이지'}
         </dd>
       </div>
     </dl>
@@ -137,13 +137,13 @@ function EngineChart({ data }: { data: DashboardData }) {
       tip: `${label}, ${pct(row.mention_p)} (${row.k}/${row.n})`,
     };
   });
-  if (rows.length === 0) return <p className="note">이 회차의 엔진별 집계가 없습니다.</p>;
+  if (rows.length === 0) return <p className="note">이 회차의 AI 서비스별 결과가 없습니다.</p>;
   return <BarList rows={rows} max={maxWithHeadroom(rows.map((r) => r.hi ?? r.value))} />;
 }
 
 function BrandChart({ data }: { data: DashboardData }) {
   const brands = brandsOf(data, latestWave(data));
-  if (brands.length === 0) return <p className="note">이 회차의 브랜드 집계가 없습니다.</p>;
+  if (brands.length === 0) return <p className="note">이 회차의 은행별 결과가 없습니다.</p>;
   const rows: BarRow[] = brands.map((row) => ({
     key: row.brand,
     label: row.brand,
@@ -156,12 +156,12 @@ function BrandChart({ data }: { data: DashboardData }) {
 }
 
 const PIPELINE_STEPS = (run: Run | null) => [
-  { title: '질문셋', detail: `${run?.questions ?? '—'}문항, 문구와 ID 고정` },
-  { title: '질의 러너', detail: `엔진 ${run?.engines ?? '—'}종, 질의 ${num(run?.planned)}건` },
-  { title: '원본 보관', detail: '응답 전문과 인용 주소, 모델 버전' },
-  { title: '채점', detail: `${run?.judge_version ?? '—'}, 20%는 사람이 재채점` },
-  { title: '집계', detail: '지표 7종, 신뢰구간' },
-  { title: '산출', detail: '이 페이지와 엑셀 리포트 갱신' },
+  { title: '질문 준비', detail: `정해 둔 질문 ${run?.questions ?? '—'}개` },
+  { title: 'AI에게 질문', detail: `AI 서비스 ${run?.engines ?? '—'}곳에 모두 ${num(run?.planned)}번` },
+  { title: '답변 저장', detail: '답변 전체와 AI가 참고한 출처 주소' },
+  { title: '답변 확인', detail: 'DJ Bank와 다른 은행 이름, 출처를 규칙으로 찾기' },
+  { title: '숫자로 정리', detail: '비율과 오차 범위 계산' },
+  { title: '화면에 표시', detail: '이 대시보드에 반영' },
 ];
 
 export function OverviewPage({ data }: { data: DashboardData }) {
@@ -172,8 +172,8 @@ export function OverviewPage({ data }: { data: DashboardData }) {
     (a, b) => (b.mention_p ?? 0) - (a.mention_p ?? 0),
   );
   const trend: TrendSeries[] = [
-    { name: 'DJ Bank 언급률', tone: 'primary' as const, points: mentionSeries(data) },
-    { name: 'DJ Bank 점유율', tone: 'secondary' as const, points: shareSeries(data) },
+    { name: '전체 답변 중 DJ Bank 비율', tone: 'primary' as const, points: mentionSeries(data) },
+    { name: '은행 이름 중 DJ Bank 비율', tone: 'secondary' as const, points: shareSeries(data) },
   ].filter((s) => s.points.length > 0);
 
   return (
@@ -183,43 +183,43 @@ export function OverviewPage({ data }: { data: DashboardData }) {
 
       <div className="columns">
         <section className="block">
-          <h2>엔진별 언급률</h2>
-          <p className="note">네 엔진 모두 웹검색을 켠 상태로 묻습니다. 막대 아래 선은 95% 신뢰구간입니다.</p>
+          <h2>AI 서비스별 DJ Bank 언급 비율</h2>
+          <p className="note">네 AI 서비스 모두 인터넷 검색을 켠 상태로 물었습니다. 막대 아래 가는 선은 오차 범위입니다.</p>
           <EngineChart data={data} />
         </section>
         <section className="block">
-          <h2>경쟁 지도</h2>
-          <p className="note">같은 질문에서 AI가 함께 꺼낸 은행별 언급 수입니다. 점유율의 분모가 됩니다.</p>
+          <h2>AI가 함께 말한 은행</h2>
+          <p className="note">같은 질문들에서 각 은행 이름이 나온 답변 수입니다.</p>
           <BrandChart data={data} />
         </section>
       </div>
 
       <div className="columns columns--wide-left">
         <section className="block">
-          <h2>회차 추이</h2>
+          <h2>회차별 변화</h2>
           <p className="note">
-            두 선이 함께 오르면 DJ Bank 쪽의 변화이고, 언급률만 오르고 점유율이 그대로면 은행 언급이 전반적으로
-            늘어난 것입니다.
+            두 선이 함께 오르면 DJ Bank가 더 자주 나온 것입니다. 파란 선만 오르면 AI가 은행 이름을 전반적으로 더
+            많이 말한 것입니다.
             {waves.length < 2 && ' 회차가 두 개 이상 쌓이면 선으로 이어집니다.'}
           </p>
           {trend.length > 0 ? (
             <TrendChart waves={waves} series={trend} />
           ) : (
-            <p className="note">회차가 측정되면 추이가 표시됩니다.</p>
+            <p className="note">회차를 측정하면 변화가 표시됩니다.</p>
           )}
         </section>
         <section className="block">
-          <h2>수요 순간별</h2>
-          <p className="note">측정 중인 수요 순간 {demand.length}개입니다.</p>
+          <h2>질문 유형별</h2>
+          <p className="note">돈을 모으는 질문과 빌리는 질문으로 나눈 결과입니다. 유형 {demand.length}개.</p>
           <div className="table-scroll">
             <table className="ledger">
               <thead>
                 <tr>
-                  <th>수요</th>
-                  <th className="num">언급률</th>
-                  <th className="num">언급</th>
-                  <th className="num">표본</th>
-                  <th className="num">점유율</th>
+                  <th>질문 유형</th>
+                  <th className="num">DJ Bank 비율</th>
+                  <th className="num">나온 답변</th>
+                  <th className="num">전체</th>
+                  <th className="num">은행 중 비율</th>
                 </tr>
               </thead>
               <tbody>
@@ -241,16 +241,16 @@ export function OverviewPage({ data }: { data: DashboardData }) {
       <section className="block">
         <h2>상품별</h2>
         <p className="note">
-          상품 {products.length}종을 언급률 순으로 정렬했습니다.
+          상품 {products.length}종을 DJ Bank가 많이 나온 순서로 정렬했습니다.
         </p>
         <div className="table-scroll">
           <table className="ledger">
             <thead>
               <tr>
                 <th>상품</th>
-                <th className="num">언급률</th>
-                <th className="num">언급</th>
-                <th className="num">표본</th>
+                <th className="num">DJ Bank 비율</th>
+                <th className="num">DJ Bank 답변</th>
+                <th className="num">전체 답변</th>
               </tr>
             </thead>
             <tbody>
@@ -268,8 +268,8 @@ export function OverviewPage({ data }: { data: DashboardData }) {
       </section>
 
       <section className="block">
-        <h2>측정 파이프라인</h2>
-        <p className="note">회차마다 이 여섯 단계가 자동으로 이어집니다. 숫자는 최근 회차의 실행 기록입니다.</p>
+        <h2>AI 답변 분석 진행 과정</h2>
+        <p className="note">회차마다 이 여섯 단계가 차례로 진행됩니다. 숫자는 가장 최근 회차 기준입니다.</p>
         <ol className="rail">
           {PIPELINE_STEPS(latestRun(data)).map((step, index) => (
             <li key={step.title}>
@@ -285,10 +285,10 @@ export function OverviewPage({ data }: { data: DashboardData }) {
               <tr>
                 <th>회차</th>
                 <th>실행일</th>
-                <th className="num">계획</th>
-                <th className="num">성공</th>
+                <th className="num">보낸 질문</th>
+                <th className="num">받은 답변</th>
                 <th className="num">실패</th>
-                <th>모드</th>
+                <th>구분</th>
               </tr>
             </thead>
             <tbody>

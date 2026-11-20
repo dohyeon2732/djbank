@@ -74,7 +74,7 @@ export function TrendChart({ waves, series }: { waves: string[]; series: TrendSe
           height={HEIGHT}
           viewBox={`0 0 ${width} ${HEIGHT}`}
           role="img"
-          aria-label={`회차별 언급률. ${summary}`}
+          aria-label={`회차별 DJ Bank 비율. ${summary}`}
         >
           {GRID.map((value) => (
             <g key={value}>

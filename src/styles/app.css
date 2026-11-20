@@ -1352,3 +1352,50 @@ textarea.input {
   font-weight: 700;
   text-decoration: none;
 }
+
+/* 개요 눈금자: 두 비율을 색으로 구분합니다. 파랑은 전체 답변 기준, 초록은 은행 이름 기준. */
+.ruler-row + .ruler-row {
+  margin-top: 26px;
+}
+
+.ruler-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-md);
+}
+
+.ruler-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex: none;
+}
+
+.ruler-value {
+  font-size: 2.25rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.ruler-row--mention .ruler-swatch {
+  background: var(--series-mention);
+}
+
+.ruler-row--mention .ruler-value {
+  color: var(--series-mention);
+}
+
+.ruler-row--share .ruler-swatch,
+.ruler-row--share .ruler-seg--own {
+  background: var(--series-share);
+}
+
+.ruler-row--share .ruler-value {
+  color: var(--series-share);
+}
+
+/* 한 구역 안의 두 번째 소제목 */
+.block .block-subhead {
+  margin-top: 32px;
+}

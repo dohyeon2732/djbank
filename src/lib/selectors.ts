@@ -16,10 +16,13 @@ export const SENTIMENT_NAMES: Record<string, string> = {
 };
 
 export const CATEGORY_NAMES: Record<string, string> = {
-  B: 'B, 카테고리 탐색',
-  C: 'C, 상황과 고민',
-  D: 'D, 비교',
+  B: '탐색형, 추천을 부탁하는 질문',
+  C: '상황형, 고민을 털어놓는 질문',
+  D: '비교형, 둘 이상을 견주는 질문',
 };
+
+/** 배지에 쓰는 짧은 이름. */
+export const CATEGORY_SHORT: Record<string, string> = { B: '탐색형', C: '상황형', D: '비교형' };
 
 const unique = <T>(values: T[]): T[] => [...new Set(values)];
 

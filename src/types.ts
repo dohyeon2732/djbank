@@ -1,4 +1,4 @@
-import type { SourceKind } from './lib/sources';
+import type { BankTier, SourceKind } from './lib/sources';
 
 /** data/*.json 한 행의 모양. 파이프라인 출력이 바뀌면 여기부터 고칩니다. */
 
@@ -82,6 +82,8 @@ export interface SourceRow {
   /** 사이트 주인(은행, 언론사 등). 규칙에 없으면 도메인 그대로. */
   owner: string;
   kind: SourceKind;
+  /** 은행 공식 사이트의 세부 분류(시중은행, 지방은행 등). 은행이 아니면 없습니다. */
+  tier?: BankTier;
   /** 인용 수. 한 답변 안의 같은 주소는 한 번만 셉니다. */
   cites: number;
   /** 이 사이트를 인용한 답변 수. */

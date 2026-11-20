@@ -19,6 +19,7 @@ function BaseTick({ base }: { base: RatePoint | null }) {
 }
 
 function RulerRow({
+  tone,
   name,
   value,
   detail,
@@ -27,6 +28,7 @@ function RulerRow({
   onLeave,
   children,
 }: {
+  tone: 'mention' | 'share';
   name: string;
   value: string;
   detail: string;
@@ -36,9 +38,12 @@ function RulerRow({
   children: ReactNode;
 }) {
   return (
-    <div className="ruler-row" onMouseMove={(event) => onHover(event, tip)} onMouseLeave={onLeave}>
+    <div className={`ruler-row ruler-row--${tone}`} onMouseMove={(event) => onHover(event, tip)} onMouseLeave={onLeave}>
       <div className="ruler-caption">
-        <span className="ruler-name">{name}</span>
+        <span className="ruler-name">
+          <span className="ruler-swatch" aria-hidden="true" />
+          {name}
+        </span>
         <span className="ruler-value">{value}</span>
         <span className="ruler-detail">{detail}</span>
       </div>
@@ -47,7 +52,7 @@ function RulerRow({
   );
 }
 
-const baseNote = (base: RatePoint | null) => (base ? `, 기준 ${base.wave} ${pct(base.value)}` : '');
+const baseNote = (base: RatePoint | null) => (base ? `, 첫 회차 ${base.wave} ${pct(base.value)}` : '');
 
 interface HeroRulerProps {
   mention: RatePoint | null;
@@ -77,18 +82,18 @@ export function HeroRuler({ mention, mentionBase, share, shareBase }: HeroRulerP
   return (
     <figure className="ruler" data-tip-root>
       <figcaption className="ruler-gap">
-        <span className="ruler-gap-label">기준 회차 대비 언급률</span>
+        <span className="ruler-gap-label">첫 회차와 비교한 변화</span>
         <strong className="ruler-gap-value">
-          {!mention ? '측정 전' : mentionBase ? pointGap(mention.value, mentionBase.value) : '기준 회차'}
+          {!mention ? '측정 전' : mentionBase ? pointGap(mention.value, mentionBase.value) : '첫 측정'}
         </strong>
         <span className="ruler-gap-note">
           {!mention
-            ? '첫 회차가 측정되면 그 값이 기준점이 됩니다.'
+            ? '첫 회차를 측정하면 그 값이 비교 기준이 됩니다.'
             : mentionBase
-              ? `${mentionBase.wave} ${pct(mentionBase.value)}에서 ${mention.wave} ${pct(mention.value)}로 바뀌었습니다.${
-                  share && shareBase ? ` 같은 기간 점유율은 ${pointGap(share.value, shareBase.value)}입니다.` : ''
+              ? `DJ Bank가 나온 답변 비율이 ${mentionBase.wave} ${pct(mentionBase.value)}에서 ${mention.wave} ${pct(mention.value)}로 바뀌었습니다.${
+                  share && shareBase ? ` 은행 이름 중 DJ Bank 비율은 ${pointGap(share.value, shareBase.value)} 바뀌었습니다.` : ''
                 }`
-              : `${mention.wave}가 첫 회차라 이 값이 기준점입니다. 다음 회차부터 이 자리에 변화량이 표시됩니다.`}
+              : `${mention.wave}가 첫 측정이라 아직 비교할 값이 없습니다. 다음 회차부터 얼마나 달라졌는지 여기에 나옵니다.`}
         </span>
       </figcaption>
 
@@ -103,14 +108,15 @@ export function HeroRuler({ mention, mentionBase, share, shareBase }: HeroRulerP
         <div className="ruler-rows">
           {mention ? (
             <RulerRow
-              name="DJ Bank 언급률"
+              tone="mention"
+              name="전체 AI 답변 중 DJ Bank가 나온 비율"
               value={pct(mention.value)}
               detail={
                 mention.lo != null && mention.hi != null
-                  ? `95% 신뢰구간 ${pct(mention.lo)}에서 ${pct(mention.hi)}`
-                  : `${num(mention.k)}/${num(mention.n)}건`
+                  ? `답변 ${num(mention.n)}건 중 ${num(mention.k)}건. 오차를 감안하면 ${pct(mention.lo)}~${pct(mention.hi)}`
+                  : `답변 ${num(mention.n)}건 중 ${num(mention.k)}건`
               }
-              tip={`DJ Bank 언급률 ${pct(mention.value)} (${mention.k}/${mention.n})${baseNote(mentionBase)}`}
+              tip={`전체 답변 중 DJ Bank가 나온 비율 ${pct(mention.value)} (${mention.k}/${mention.n}건)${baseNote(mentionBase)}`}
               onHover={show}
               onLeave={hide}
             >
@@ -134,16 +140,17 @@ export function HeroRuler({ mention, mentionBase, share, shareBase }: HeroRulerP
             </RulerRow>
           ) : (
             <div className="ruler-track ruler-track--empty">
-              <span>첫 회차가 측정되면 DJ Bank 언급률이 이 줄에 그려집니다</span>
+              <span>첫 회차를 측정하면 DJ Bank가 나온 비율이 이 줄에 그려집니다</span>
             </div>
           )}
 
           {share && (
             <RulerRow
-              name="은행 언급 중 DJ Bank 몫"
+              tone="share"
+              name="AI가 말한 은행 이름 중 DJ Bank 비율"
               value={pct(share.value)}
-              detail={`은행 ${segments.length}곳 언급 ${num(share.n)}건 중 ${num(share.k)}건, 경쟁 ${competitors}곳 ${pct(1 - share.value)}`}
-              tip={`DJ Bank 점유율 ${pct(share.value)} (${num(share.k)}/${num(share.n)}건)${baseNote(shareBase)}`}
+              detail={`은행 이름이 나온 ${num(share.n)}번 중 DJ Bank ${num(share.k)}번. 나머지는 다른 은행 ${competitors}곳`}
+              tip={`은행 이름 중 DJ Bank 비율 ${pct(share.value)} (${num(share.k)}/${num(share.n)}번)${baseNote(shareBase)}`}
               onHover={show}
               onLeave={hide}
             >
@@ -156,7 +163,7 @@ export function HeroRuler({ mention, mentionBase, share, shareBase }: HeroRulerP
                       style={{ width: `${(brand.count / share.n) * 100}%` }}
                       onMouseMove={(event) => {
                         event.stopPropagation();
-                        show(event, `${brand.brand} ${pct(brand.count / share.n)} (${num(brand.count)}건)`);
+                        show(event, `${brand.brand} ${pct(brand.count / share.n)} (${num(brand.count)}번)`);
                       }}
                     />
                   ))}
@@ -166,7 +173,7 @@ export function HeroRuler({ mention, mentionBase, share, shareBase }: HeroRulerP
             </RulerRow>
           )}
         </div>
-        {mentionBase && <p className="ruler-legend">세로 눈금은 기준 회차 {mentionBase.wave}의 값입니다.</p>}
+        {mentionBase && <p className="ruler-legend">세로 눈금은 첫 회차 {mentionBase.wave}의 값입니다.</p>}
       </div>
       <ChartTip tip={tip} />
     </figure>

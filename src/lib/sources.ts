@@ -41,41 +41,49 @@ export const KIND_ORDER: SourceKind[] = [
   'other',
 ];
 
+/** 은행 공식 사이트의 세부 분류. */
+export type BankTier = '시중은행' | '지방은행' | '인터넷전문은행' | '특수은행' | '기타 은행';
+
+export const BANK_TIERS: BankTier[] = ['시중은행', '지방은행', '인터넷전문은행', '특수은행', '기타 은행'];
+
 export interface SiteInfo {
   owner: string;
   kind: SourceKind;
+  /** 은행(kind가 bank)일 때만 있습니다. */
+  tier?: BankTier;
 }
 
-const site = (owner: string, kind: SourceKind): SiteInfo => ({ owner, kind });
+const site = (owner: string, kind: SourceKind, tier?: BankTier): SiteInfo =>
+  tier ? { owner, kind, tier } : { owner, kind };
 
 /** 도메인별 소유자와 유형. 새 도메인이 '미분류'로 나오면 여기에 한 줄 추가합니다. */
 const SITES: Record<string, SiteInfo> = {
   // 은행
-  'kbstar.com': site('KB국민은행', 'bank'),
-  'shinhan.com': site('신한은행', 'bank'),
-  'hanabank.com': site('하나은행', 'bank'),
-  'kebhana.com': site('하나은행', 'bank'),
-  'wooribank.com': site('우리은행', 'bank'),
-  'nonghyup.com': site('NH농협은행', 'bank'),
-  'nhbank.com': site('NH농협은행', 'bank'),
-  'ibk.co.kr': site('IBK기업은행', 'bank'),
-  'kdb.co.kr': site('KDB산업은행', 'bank'),
-  'kakaobank.com': site('카카오뱅크', 'bank'),
-  'kbanknow.com': site('케이뱅크', 'bank'),
-  'tossbank.com': site('토스뱅크', 'bank'),
-  'standardchartered.co.kr': site('SC제일은행', 'bank'),
-  'citibank.co.kr': site('한국씨티은행', 'bank'),
-  'suhyup-bank.com': site('Sh수협은행', 'bank'),
-  'busanbank.co.kr': site('BNK부산은행', 'bank'),
-  'knbank.co.kr': site('BNK경남은행', 'bank'),
-  'imbank.co.kr': site('iM뱅크', 'bank'),
-  'dgb.co.kr': site('iM뱅크', 'bank'),
-  'kjbank.com': site('광주은행', 'bank'),
-  'jbbank.co.kr': site('전북은행', 'bank'),
-  'jejubank.co.kr': site('제주은행', 'bank'),
-  'epostbank.go.kr': site('우체국예금', 'bank'),
-  'bankofamerica.co.id': site('Bank of America', 'bank'),
-  'bankofamerica.com': site('Bank of America', 'bank'),
+  'kbstar.com': site('KB국민은행', 'bank', '시중은행'),
+  'shinhan.com': site('신한은행', 'bank', '시중은행'),
+  'hanabank.com': site('하나은행', 'bank', '시중은행'),
+  'kebhana.com': site('하나은행', 'bank', '시중은행'),
+  'wooribank.com': site('우리은행', 'bank', '시중은행'),
+  'nonghyup.com': site('NH농협은행', 'bank', '특수은행'),
+  'nhbank.com': site('NH농협은행', 'bank', '특수은행'),
+  'ibk.co.kr': site('IBK기업은행', 'bank', '특수은행'),
+  'kdb.co.kr': site('KDB산업은행', 'bank', '특수은행'),
+  'kakaobank.com': site('카카오뱅크', 'bank', '인터넷전문은행'),
+  'kbanknow.com': site('케이뱅크', 'bank', '인터넷전문은행'),
+  'tossbank.com': site('토스뱅크', 'bank', '인터넷전문은행'),
+  'standardchartered.co.kr': site('SC제일은행', 'bank', '시중은행'),
+  'citibank.co.kr': site('한국씨티은행', 'bank', '시중은행'),
+  'suhyup-bank.com': site('Sh수협은행', 'bank', '특수은행'),
+  'busanbank.co.kr': site('BNK부산은행', 'bank', '지방은행'),
+  'knbank.co.kr': site('BNK경남은행', 'bank', '지방은행'),
+  'imbank.co.kr': site('iM뱅크', 'bank', '시중은행'),
+  'dgb.co.kr': site('iM뱅크', 'bank', '시중은행'),
+  'kjbank.com': site('광주은행', 'bank', '지방은행'),
+  'jbbank.co.kr': site('전북은행', 'bank', '지방은행'),
+  'jejubank.co.kr': site('제주은행', 'bank', '지방은행'),
+  'epostbank.go.kr': site('우체국예금', 'bank', '기타 은행'),
+  'bankofamerica.co.id': site('Bank of America', 'bank', '기타 은행'),
+  'bankofamerica.com': site('Bank of America', 'bank', '기타 은행'),
 
   // 저축은행
   'ibksb.co.kr': site('IBK저축은행', 'savings'),
@@ -287,7 +295,7 @@ export function classifySite(domain: string, ownDomains: string[] = []): SiteInf
   // 표에 없는 도메인은 이름과 접미사로 유형만 추정하고, 소유자는 도메인 그대로 둡니다.
   const name = domain.split('.')[0] ?? '';
   if (/savingsbank|저축/.test(domain) || /sb$/.test(name)) return site(domain, 'savings');
-  if (/bank/.test(name)) return site(domain, 'bank');
+  if (/bank/.test(name)) return site(domain, 'bank', '기타 은행');
   if (/\.go\.kr$|\.or\.kr$|\.gov$/.test(domain)) return site(domain, 'public');
   if (/news|ilbo|daily|times|press|journal|economy|biz$/.test(name)) return site(domain, 'press');
   if (/blog|cafe|wiki/.test(name)) return site(domain, /wiki/.test(name) ? 'wiki' : 'community');

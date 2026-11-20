@@ -3,6 +3,7 @@ import type { MouseEvent } from 'react';
 import {
   ENGINES,
   ENGINE_NAMES,
+  CATEGORY_SHORT,
   SENTIMENT_NAMES,
   answerWaves,
   enginesMentioning,
@@ -61,7 +62,7 @@ function QuestionDetail({
       <div className="tag-row">
         <b>{question.id}</b>
         <Badge>{question.demand}</Badge>
-        <Badge>{`${question.category}형`}</Badge>
+        <Badge>{CATEGORY_SHORT[question.category] ?? question.category}</Badge>
         {question.release && <Badge>{question.release}</Badge>}
         {question.speaker && <Badge>{question.speaker}</Badge>}
         {question.group && <Badge>{question.group}</Badge>}
@@ -105,7 +106,7 @@ function QuestionDetail({
 
       {shownWave && (
         <section className="drawer-section">
-          <h4>엔진별 응답, {shownWave} 회차</h4>
+          <h4>AI 서비스별 답변, {shownWave} 회차</h4>
           {shown.length === 0 && <p className="note">{shownWave} 회차에는 이 질문을 묻지 않았습니다.</p>}
           {ENGINES.map((engine) => (
             <EngineAnswer key={engine} engine={engine} answers={shown.filter((a) => a.engine === engine)} />

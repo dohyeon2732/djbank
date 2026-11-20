@@ -10,8 +10,8 @@ export function EnginePips({ hit }: { hit: number }) {
     <span
       className="pips"
       role="img"
-      aria-label={`엔진 ${total}종 중 ${hit}종이 DJ Bank를 언급`}
-      title="DJ Bank를 언급한 엔진 수"
+      aria-label={`AI 서비스 ${total}곳 중 ${hit}곳이 DJ Bank를 언급`}
+      title="DJ Bank를 말한 AI 서비스 수"
     >
       {ENGINES.map((engine, index) => (
         <span key={engine} className={`pip${index < hit ? ' pip--on' : ''}`} />

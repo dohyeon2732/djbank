@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Badge, EnginePips } from '../components/Badges';
 import {
   CATEGORY_NAMES,
+  CATEGORY_SHORT,
   answerWaves,
   enginesMentioning,
   filterOptions,
@@ -37,7 +38,7 @@ export function QuestionsPage({ data, filters, onFiltersChange, wave, onWaveChan
       <section className="block">
         <h2 className="page-title">질문셋</h2>
         <p className="note">
-          측정에 쓰는 고정 질문 전체입니다. 오른쪽 표시는 고른 회차에서 DJ Bank를 언급한 엔진 수이고, 질문을 누르면
+          측정에 쓰는 고정 질문 전체입니다. 오른쪽 표시는 고른 회차에서 DJ Bank를 말한 AI 서비스 수이고, 질문을 누르면
           그 회차의 응답과 추이를 볼 수 있습니다. 문구와
           ID는 측정 기간 동안 바뀌지 않습니다.
         </p>
@@ -52,14 +53,14 @@ export function QuestionsPage({ data, filters, onFiltersChange, wave, onWaveChan
               ))}
             </select>
           )}
-          <select aria-label="수요" value={filters.demand} onChange={(e) => set({ demand: e.target.value })}>
-            <option value="">모든 수요</option>
+          <select aria-label="질문 유형" value={filters.demand} onChange={(e) => set({ demand: e.target.value })}>
+            <option value="">모든 질문 유형</option>
             {options.demands.map((demand) => (
               <option key={demand}>{demand}</option>
             ))}
           </select>
-          <select aria-label="유형" value={filters.category} onChange={(e) => set({ category: e.target.value })}>
-            <option value="">모든 유형</option>
+          <select aria-label="질문 방식" value={filters.category} onChange={(e) => set({ category: e.target.value })}>
+            <option value="">모든 질문 방식</option>
             {options.categories.map((category) => (
               <option key={category} value={category}>
                 {CATEGORY_NAMES[category] ?? category}
@@ -96,7 +97,7 @@ export function QuestionsPage({ data, filters, onFiltersChange, wave, onWaveChan
                     <span className="entry-text">{question.question}</span>
                     <span className="entry-tags">
                       <Badge>{question.demand}</Badge>
-                      <Badge>{`${question.category}형`}</Badge>
+                      <Badge>{CATEGORY_SHORT[question.category] ?? question.category}</Badge>
                       {question.group && <Badge>{question.group}</Badge>}
                     </span>
                     <span className="entry-product">{question.product}</span>

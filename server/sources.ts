@@ -33,7 +33,7 @@ export function summarizeSources(answers: CitedAnswer[], ownDomains: string[]): 
       if (!group) {
         const info = classifySite(domain, ownDomains);
         group = {
-          row: { wave: answer.wave, engine: answer.engine, domain, owner: info.owner, kind: info.kind, cites: 0, answers: 0, qids: [], pages: [] },
+          row: { wave: answer.wave, engine: answer.engine, domain, owner: info.owner, kind: info.kind, ...(info.tier && { tier: info.tier }), cites: 0, answers: 0, qids: [], pages: [] },
           answerKeys: new Set(),
           qids: new Set(),
           pages: new Map(),

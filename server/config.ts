@@ -29,8 +29,8 @@ export const DEFAULT_CONFIG: RunnerConfig = {
     { name: '토스뱅크', aliases: ['토스뱅크'] },
     { name: '카카오뱅크', aliases: ['카카오뱅크', '카뱅'] },
   ],
-  // 도메인 또는 남의 도메인 아래 자사 페이지 주소. DJ Bank 안내 페이지는 리멤버 도메인 아래에 있습니다.
-  ownDomains: ['mkt.rememberapp.co.kr/djbank'],
+  // 도메인 또는 특정 경로(예: mkt.rememberapp.co.kr/djbank). 리멤버 사이트 전체를 자사로 봅니다.
+  ownDomains: ['rememberapp.co.kr', 'remember.co.kr'],
 };
 
 export const LIMITS = {
