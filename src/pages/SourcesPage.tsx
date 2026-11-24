@@ -158,7 +158,8 @@ export function SourcesPage({ data, wave, onWaveChange }: SourcesPageProps) {
   const answers = data.answers.filter((a) => a.wave === current);
   const cited = answers.filter((a) => a.cites > 0).length;
   const total = sum(sites.map((s) => s.cites));
-  const bankCites = sum(sites.filter((s) => s.kind === 'bank' || s.kind === 'own').map((s) => s.cites));
+  // 자사 사이트는 따로 세므로 은행 공식에는 넣지 않습니다. 아래 차트의 '은행 공식' 막대와 같은 숫자입니다.
+  const bankCites = sum(sites.filter((s) => s.kind === 'bank').map((s) => s.cites));
   const ownCites = sum(sites.filter((s) => s.kind === 'own').map((s) => s.cites));
   const kinds = KIND_ORDER.filter((k) => sites.some((s) => s.kind === k));
   const tiers = BANK_TIERS.filter((t) => sites.some((s) => s.kind === 'bank' && s.tier === t));
