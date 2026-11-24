@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Badge } from '../components/Badges';
 import { num } from '../lib/format';
 import { runInBrowser } from '../runner/browserJob';
+import { judgeInBrowser } from '../runner/judgeJob';
+import type { JudgeProgress } from '../runner/judgeJob';
 import { RunnerLocked, RunnerUnavailable, runner } from '../runner/client';
 import type {
   BrandRule,
@@ -21,6 +23,8 @@ interface Form {
   ownAliases: string;
   competitors: string;
   ownDomains: string;
+  judgeModel: string;
+  judgeFacts: string;
 }
 
 const splitList = (text: string) =>
@@ -36,6 +40,8 @@ const toForm = (config: RunnerConfig): Form => ({
   ownAliases: config.ownBrand.aliases.join(', '),
   competitors: config.competitors.map((c) => `${c.name}: ${c.aliases.join(', ')}`).join('\n'),
   ownDomains: config.ownDomains.join(', '),
+  judgeModel: config.judge.model,
+  judgeFacts: config.judge.facts,
 });
 
 function toConfig(form: Form, base: RunnerConfig): RunnerConfig {
@@ -52,6 +58,7 @@ function toConfig(form: Form, base: RunnerConfig): RunnerConfig {
     ownBrand: { name: base.ownBrand.name, aliases: splitList(form.ownAliases) },
     competitors,
     ownDomains: splitList(form.ownDomains),
+    judge: { model: form.judgeModel.trim() || base.judge.model, facts: form.judgeFacts.trim() },
   };
 }
 
@@ -97,11 +104,18 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const lastState = useRef<JobStatus['state']>('idle');
+  // AI 채점
+  const [judgeWave, setJudgeWave] = useState('');
+  const [judgeRedo, setJudgeRedo] = useState(false);
+  const [judgeCount, setJudgeCount] = useState<number | null>(null);
+  const [judging, setJudging] = useState<JudgeProgress | null>(null);
+  const judgeAbort = useRef<AbortController | null>(null);
 
   const apply = useCallback((next: RunnerOverview) => {
     setOverview(next);
     setForm(toForm(next.config));
     setWave(next.nextWave);
+    setJudgeWave((current) => (next.existingWaves.includes(current) ? current : (next.existingWaves.at(-1) ?? '')));
   }, []);
 
   const fail = useCallback((reason: unknown) => {
@@ -290,6 +304,30 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
       setOverview(await runner.overview());
     });
 
+  const judgeBusy = judging?.state === 'running';
+
+  /** 채점할 답변이 몇 건인지 먼저 세어, 확인 문구에 보여 줍니다. */
+  const askJudge = () =>
+    run(async () => {
+      const { tasks } = await runner.judgeList(judgeWave);
+      setJudgeCount(tasks.filter((task) => judgeRedo || !task.judged).length);
+    });
+
+  const startJudge = () =>
+    run(async () => {
+      setJudgeCount(null);
+      judgeAbort.current = new AbortController();
+      await judgeInBrowser({
+        wave: judgeWave,
+        config: toConfig(form, overview.config),
+        redo: judgeRedo,
+        signal: judgeAbort.current.signal,
+        onUpdate: setJudging,
+      });
+      // 채점 결과가 개요와 질문 상세에 바로 보이도록 대시보드 데이터를 다시 읽습니다.
+      onSaved();
+    });
+
   return (
     <div className="page">
       <section className="block">
@@ -450,7 +488,7 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
             <summary>은행 이름과 자사 페이지를 찾는 기준</summary>
             <p className="note">
               답변에 아래 이름이 들어 있으면 그 은행이 나온 것으로 셉니다. 영어 대문자와 소문자는 같은 글자로 봅니다.
-              추천하는 정도와 심각하게 틀린 답변은 아직 확인하지 않아 화면에 —로 나옵니다.
+              추천하는 정도와 심각하게 틀린 답변은 아래 “AI 채점”에서 따로 확인합니다.
             </p>
             <label className="field">
               <span>DJ Bank로 세는 이름, 쉼표로 구분</span>
@@ -636,6 +674,142 @@ export function RunPage({ onSaved, onShowOverview }: RunPageProps) {
               </button>
             )}
           </div>
+        </section>
+      )}
+      {hosted && overview.existingWaves.length > 0 && (
+        <section className="block">
+          <h2>AI 채점</h2>
+          <p className="note">
+            DJ Bank가 나온 답변을 AI에게 읽혀, 얼마나 권했는지와 좋게 말했는지를 확인합니다. 아래에 상품 사실을
+            적어 두면 그것과 어긋나는 “심각하게 틀린 답변”도 찾습니다. 채점은 Claude가 하고, 답변 한 건마다
+            이용 요금이 조금씩 나갑니다.
+          </p>
+          <fieldset className="run-form" disabled={judgeBusy || busy}>
+            <div className="run-fields">
+              <label className="field">
+                <span>채점할 회차</span>
+                <select
+                  className="input"
+                  value={judgeWave}
+                  onChange={(e) => {
+                    setJudgeWave(e.target.value);
+                    setJudgeCount(null);
+                  }}
+                >
+                  {overview.existingWaves.map((id) => (
+                    <option key={id} value={id}>
+                      {id}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span>채점에 쓰는 Claude 모델</span>
+                <input
+                  className="input"
+                  value={form.judgeModel}
+                  spellCheck={false}
+                  onChange={(e) => setForm({ ...form, judgeModel: e.target.value })}
+                />
+              </label>
+            </div>
+            <label className="field judge-facts">
+              <span>
+                상품 사실. 금리, 한도, 가입 대상처럼 틀리면 안 되는 내용을 적습니다. 비워 두면 틀린 답변은
+                확인하지 않습니다
+              </span>
+              <textarea
+                className="input"
+                rows={6}
+                placeholder={'예:\nDJ 더주는 법인 파킹통장은 제주은행 상품이다.\n가입 대상은 법인이다.\n금리는 연 ○.○%다(2026년 11월 기준).'}
+                value={form.judgeFacts}
+                onChange={(e) => setForm({ ...form, judgeFacts: e.target.value })}
+              />
+            </label>
+            <label className="judge-redo">
+              <input
+                type="checkbox"
+                checked={judgeRedo}
+                onChange={(e) => {
+                  setJudgeRedo(e.target.checked);
+                  setJudgeCount(null);
+                }}
+              />
+              이미 채점한 답변도 다시 채점 (상품 사실이나 모델을 바꿨을 때)
+            </label>
+          </fieldset>
+
+          <div className="run-summary">
+            {judgeCount != null && !judgeBusy ? (
+              judgeCount === 0 ? (
+                <p className="note" role="status">
+                  {judgeWave} 회차에는 새로 채점할 답변이 없습니다.
+                </p>
+              ) : (
+                <div className="run-confirm" role="alertdialog" aria-label="채점 확인">
+                  <p>
+                    {overview.fakeMode
+                      ? `연습 모드로 ${num(judgeCount)}건을 가짜 채점으로 채웁니다. 요금은 나가지 않습니다.`
+                      : `${judgeWave} 회차의 답변 ${num(judgeCount)}건을 AI가 읽고 채점합니다. Claude 이용 요금이 나갑니다.${
+                          form.judgeFacts.trim() ? '' : ' 상품 사실이 비어 있어 틀린 답변은 확인하지 않습니다.'
+                        }`}
+                  </p>
+                  <button type="button" className="button button--primary" onClick={startJudge}>
+                    {num(judgeCount)}건 채점
+                  </button>
+                  <button type="button" className="button" onClick={() => setJudgeCount(null)}>
+                    취소
+                  </button>
+                </div>
+              )
+            ) : (
+              <div className="run-actions">
+                <button
+                  type="button"
+                  className="button button--primary"
+                  disabled={judgeBusy || busy || !judgeWave}
+                  onClick={askJudge}
+                >
+                  채점 시작
+                </button>
+                {judgeBusy && (
+                  <button type="button" className="button" onClick={() => judgeAbort.current?.abort()}>
+                    멈추기
+                  </button>
+                )}
+              </div>
+            )}
+            <p className="note">상품 사실과 모델은 위의 “설정 저장”을 누르면 다음에도 남습니다.</p>
+          </div>
+
+          {judging && (
+            <div className="judge-progress" role="status">
+              <p className="note">{judging.message}</p>
+              {judging.planned > 0 && (
+                <div className="progress">
+                  <progress max={judging.planned} value={judging.done} aria-label="채점 진행" />
+                  <span>
+                    {judging.done}/{judging.planned}
+                  </span>
+                </div>
+              )}
+              {judging.planned > 0 && (
+                <p className="note">
+                  실패 {num(judging.failed)}건
+                  {form.judgeFacts.trim() ? `, 심각하게 틀린 답변 ${num(judging.critical)}건` : ''}. 사용량, 보낸 글{' '}
+                  {num(judging.inputTokens)} / 받은 글 {num(judging.outputTokens)}
+                </p>
+              )}
+              {judging.lastError && <p className="run-error">최근 오류: {judging.lastError}</p>}
+              {judging.state === 'done' && judging.planned > 0 && (
+                <div className="run-actions">
+                  <button type="button" className="button button--primary" onClick={onShowOverview}>
+                    개요에서 결과 보기
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </section>
       )}
     </div>

@@ -46,10 +46,14 @@ export const DEFAULT_CONFIG: RunnerConfig = {
   ],
   // 도메인 또는 특정 경로(예: mkt.rememberapp.co.kr/djbank). 리멤버 앱 사이트와 제주은행 홈페이지를 자사로 봅니다.
   ownDomains: ['rememberapp.co.kr', 'jejubank.co.kr'],
+  // 채점은 저렴한 모델로 합니다. 상품 사실은 실행 탭에서 사람이 적습니다.
+  judge: { model: 'claude-haiku-5-5', facts: '' },
 };
 
 export const LIMITS = {
   repetitions: { min: 1, max: 5 },
+  /** 상품 사실 글자 수. 채점할 때마다 함께 보내므로 너무 길면 요금이 늡니다. */
+  factsLength: 8000,
   concurrency: { min: 1, max: 8 },
 } as const;
 
@@ -101,6 +105,13 @@ export function normalizeConfig(input: unknown): RunnerConfig {
     ownDomains: raw.ownDomains
       ? cleanList(raw.ownDomains).map(normalizeOwn).filter(Boolean)
       : DEFAULT_CONFIG.ownDomains,
+    judge: {
+      model:
+        typeof raw.judge?.model === 'string' && raw.judge.model.trim()
+          ? raw.judge.model.trim()
+          : DEFAULT_CONFIG.judge.model,
+      facts: typeof raw.judge?.facts === 'string' ? raw.judge.facts.trim().slice(0, LIMITS.factsLength) : '',
+    },
   };
 }
 

@@ -93,7 +93,9 @@ function Metrics({ data }: { data: DashboardData }) {
         <dt>추천하는 정도</dt>
         <dd className="metric-value">{fixed2(total?.rec_avg)}</dd>
         <dd className="metric-sub">
-          {total && total.rec_avg == null ? 'AI 채점 기능을 붙이면 표시됩니다' : '0점에서 3점, 3점이 가장 강한 추천'}
+          {total && total.rec_avg == null
+            ? '실행 탭에서 AI 채점을 하면 표시됩니다'
+            : 'DJ Bank가 나온 답변 기준. 0점에서 3점, 3점이 가장 강한 추천'}
         </dd>
       </div>
       <div>
@@ -103,8 +105,10 @@ function Metrics({ data }: { data: DashboardData }) {
         </dd>
         <dd className="metric-sub">
           {total && critical == null
-            ? 'AI 채점 기능을 붙이면 표시됩니다'
-            : `${critical ? '확인 필요. ' : ''}없는 상품을 지어내는 등 사실과 다른 답변`}
+            ? total.rec_avg == null
+              ? '실행 탭에서 AI 채점을 하면 표시됩니다'
+              : '실행 탭에 상품 사실을 적고 채점하면 표시됩니다'
+            : `${critical ? '확인 필요. ' : ''}적어 둔 상품 사실과 크게 다른 답변`}
         </dd>
       </div>
       <div>

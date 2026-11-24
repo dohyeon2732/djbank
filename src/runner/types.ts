@@ -27,6 +27,15 @@ export interface RunnerConfig {
   competitors: BrandRule[];
   /** 인용 출처 중 자사로 셀 도메인. 비어 있으면 자사 인용 점유율은 계산하지 않습니다. */
   ownDomains: string[];
+  /** AI 채점 설정. facts가 비어 있으면 틀린 답변은 확인하지 않습니다. */
+  judge: JudgeSettings;
+}
+
+export interface JudgeSettings {
+  /** 채점에 쓰는 Claude 모델 이름. */
+  model: string;
+  /** 사람이 적어 둔 상품 사실. 답변이 이것과 어긋나는지 봅니다. */
+  facts: string;
 }
 
 export interface EngineStatus {
@@ -92,6 +101,23 @@ export interface JobStatus {
 export interface AskResult {
   mention: boolean;
   model: string;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+/** AI 채점 대상 한 건(DJ Bank가 나온 답변)과 이미 채점했는지. */
+export interface JudgeTask {
+  qid: string;
+  engine: EngineId;
+  rep: number;
+  judged: boolean;
+}
+
+/** 답변 하나를 AI로 채점한 결과 요약. */
+export interface JudgeResult {
+  rec: number;
+  sentiment: string;
+  accuracy: string | null;
   inputTokens: number;
   outputTokens: number;
 }

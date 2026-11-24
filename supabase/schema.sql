@@ -45,6 +45,9 @@ create table if not exists public.responses (
   cites         integer not null default 0,
   own_cites     integer not null default 0,
   excerpt       text,
+  accuracy      text,
+  judge_note    text,
+  judged_at     timestamptz,
   model         text,
   input_tokens  integer not null default 0,
   output_tokens integer not null default 0,
@@ -107,3 +110,8 @@ alter table public.response_raw  enable row level security;
 alter table public.segments      enable row level security;
 alter table public.brands        enable row level security;
 alter table public.runner_config enable row level security;
+
+-- AI 채점 결과 칸. 예전에 만든 표에도 없으면 더합니다.
+alter table public.responses add column if not exists accuracy text;
+alter table public.responses add column if not exists judge_note text;
+alter table public.responses add column if not exists judged_at timestamptz;

@@ -2,7 +2,8 @@ import type { BrandCount, DashboardData, FullAnswer, Question, RawAnswer, Run, S
 import { summarizeSources } from './sources.js';
 import type { CitedAnswer } from './sources.js';
 import { ENGINE_IDS } from '../src/runner/types.js';
-import type { AskResult, BeginResult, RunnerConfig, RunnerOverview } from '../src/runner/types.js';
+import type { AskResult, BeginResult, JudgeResult, JudgeTask, RunnerConfig, RunnerOverview } from '../src/runner/types.js';
+import { AI_JUDGE_VERSION, aiJudge } from './aijudge.js';
 import { aggregate } from './aggregate.js';
 import type { ScoredAnswer } from './aggregate.js';
 import { DEFAULT_CONFIG, normalizeConfig } from './config.js';
@@ -35,11 +36,29 @@ interface ResponseRow extends Omit<RawAnswer, 'mention' | 'brands'> {
   mention: boolean;
   brands: string[];
   own_cites: number;
+  judged_at?: string | null;
 }
+
+/** 저장된 답변으로 집계(segments, brands)를 다시 만듭니다. 회차 마감과 AI 채점 마감이 함께 씁니다. */
+async function reaggregate(db: Db, wave: string, config: RunnerConfig): Promise<ResponseRow[]> {
+  const rows = await selectAll<ResponseRow>(db, 'responses', `select=*&${eq('wave', wave)}`);
+  if (rows.length === 0) return rows;
+  const answers: ScoredAnswer[] = rows.map(({ own_cites, ...row }) => ({ ...row, ownCites: own_cites }));
+  const result = aggregate(wave, await cachedQuestions(db), answers, config.ownBrand.name, config.ownDomains.length > 0);
+  await remove(db, 'segments', eq('wave', wave));
+  await remove(db, 'brands', eq('wave', wave));
+  await upsert(db, 'segments', result.segments, 'wave,dim,name');
+  await upsert(db, 'brands', result.brands, 'wave,brand');
+  return rows;
+}
+
+/** 답변 한 건을 가리키는 조건. */
+const oneAnswer = (wave: string, qid: string, engine: string, rep: number) =>
+  `${eq('wave', wave)}&${eq('qid', qid)}&${eq('engine', engine)}&rep=eq.${rep}`;
 
 const QUESTION_COLUMNS = 'id,question,category,demand,product,release,speaker,group,rationale';
 const RUN_COLUMNS = 'wave,date,planned,succeeded,failed,engines,questions,judge_version,mode';
-const RESPONSE_COLUMNS = 'wave,qid,engine,rep,mention,rank,rec,sentiment,brands,cites,excerpt';
+const RESPONSE_COLUMNS = 'wave,qid,engine,rep,mention,rank,rec,sentiment,brands,cites,excerpt,accuracy,judge_note';
 
 const loadQuestions = (db: Db) =>
   selectAll<Question>(db, 'questions', `select=${QUESTION_COLUMNS}&order=position.asc`);
@@ -220,15 +239,8 @@ export async function handleDb(
       // 받은 응답으로 집계를 만들고 회차를 대시보드에 공개합니다.
       case 'POST finish': {
         const wave = parseWave(body.wave);
-        const rows = await selectAll<ResponseRow>(db, 'responses', `select=*&${eq('wave', wave)}`);
+        const rows = await reaggregate(db, wave, normalizeConfig(body.config));
         if (rows.length === 0) return reply(400, { error: '저장된 답변이 없어 회차를 마칠 수 없습니다.' });
-        const config = normalizeConfig(body.config);
-        const answers: ScoredAnswer[] = rows.map(({ own_cites, ...row }) => ({ ...row, ownCites: own_cites }));
-        const result = aggregate(wave, await cachedQuestions(db), answers, config.ownBrand.name, config.ownDomains.length > 0);
-        await remove(db, 'segments', eq('wave', wave));
-        await remove(db, 'brands', eq('wave', wave));
-        await upsert(db, 'segments', result.segments, 'wave,dim,name');
-        await upsert(db, 'brands', result.brands, 'wave,brand');
         const planned = typeof body.planned === 'number' ? Math.max(rows.length, Math.floor(body.planned)) : rows.length;
         await update(db, 'runs', eq('wave', wave), {
           status: 'done',
@@ -241,6 +253,77 @@ export async function handleDb(
           finished_at: new Date().toISOString(),
         });
         return reply(200, { saved: rows.length });
+      }
+
+      // AI 채점 대상: 이 회차에서 DJ Bank가 나온 답변. 이미 채점한 것은 표시해 두어 화면이 건너뜁니다.
+      case 'POST judge-list': {
+        const wave = parseWave(body.wave);
+        const rows = await selectAll<ResponseRow>(
+          db,
+          'responses',
+          `select=qid,engine,rep,judged_at&${eq('wave', wave)}&mention=eq.true&order=qid.asc,engine.asc,rep.asc`,
+        );
+        const tasks: JudgeTask[] = rows.flatMap((row) => {
+          const engine = ENGINE_IDS.find((id) => id === row.engine);
+          return engine ? [{ qid: row.qid, engine, rep: row.rep, judged: Boolean(row.judged_at) }] : [];
+        });
+        return reply(200, { wave, tasks });
+      }
+
+      // 답변 한 건을 AI에게 읽혀 추천하는 정도, 어조, 틀린 내용을 채점하고 저장합니다.
+      case 'POST judge': {
+        const wave = parseWave(body.wave);
+        const qid = typeof body.qid === 'string' ? body.qid : '';
+        const engine = ENGINE_IDS.find((id) => id === body.engine);
+        const rep = typeof body.rep === 'number' && body.rep > 0 ? Math.floor(body.rep) : 1;
+        const question = (await cachedQuestions(db)).find((q) => q.id === qid);
+        if (!engine || !question) return reply(400, { error: '알 수 없는 AI 서비스이거나 질문입니다.' });
+        const key = keys.keys.claude;
+        if (!key && !isFakeMode()) return reply(400, { error: '채점에 쓰는 Claude 이용 키가 등록되어 있지 않습니다.' });
+        const config = normalizeConfig(body.config);
+        const raw = (
+          await selectAll<{ answer_text: string }>(db, 'response_raw', `select=answer_text&${oneAnswer(wave, qid, engine, rep)}`)
+        )[0];
+        if (!raw?.answer_text) return reply(400, { error: '이 답변은 내용이 저장되어 있지 않아 채점할 수 없습니다.' });
+        let verdict;
+        try {
+          verdict = await aiJudge({
+            question: question.question,
+            answer: raw.answer_text,
+            ownBrand: config.ownBrand.name,
+            ownAliases: config.ownBrand.aliases,
+            facts: config.judge.facts,
+            model: config.judge.model,
+            key: key ?? '',
+            signal: AbortSignal.timeout(150_000),
+          });
+        } catch (error) {
+          return reply(502, { error: errorText(error) });
+        }
+        await update(db, 'responses', oneAnswer(wave, qid, engine, rep), {
+          rec: verdict.rec,
+          sentiment: verdict.sentiment,
+          accuracy: verdict.accuracy,
+          judge_note: verdict.note,
+          judged_at: new Date().toISOString(),
+        });
+        const result: JudgeResult = {
+          rec: verdict.rec,
+          sentiment: verdict.sentiment,
+          accuracy: verdict.accuracy,
+          inputTokens: verdict.inputTokens,
+          outputTokens: verdict.outputTokens,
+        };
+        return reply(200, result);
+      }
+
+      // 채점 결과를 집계에 반영합니다. 회차의 날짜와 건수는 건드리지 않습니다.
+      case 'POST judge-finish': {
+        const wave = parseWave(body.wave);
+        const rows = await reaggregate(db, wave, normalizeConfig(body.config));
+        if (rows.length === 0) return reply(400, { error: '저장된 답변이 없습니다.' });
+        await update(db, 'runs', eq('wave', wave), { judge_version: `${JUDGE_VERSION}+${AI_JUDGE_VERSION}` });
+        return reply(200, { judged: rows.filter((row) => row.judged_at).length });
       }
 
       // 중단된 회차의 받아 둔 응답을 버립니다. 저장이 끝난 회차는 지우지 않습니다.

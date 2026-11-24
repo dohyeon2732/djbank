@@ -16,6 +16,13 @@ import { Badge, EnginePips } from './Badges';
 
 const EXCERPT_LIMIT = 600;
 
+/** AI 채점이 상품 사실과 비교한 결과. */
+const ACCURACY_NAMES: Record<string, string> = {
+  none: '사실과 맞음',
+  minor: '조금 다름',
+  critical: '심각하게 틀림',
+};
+
 function hostOf(url: string): string {
   try {
     return new URL(url).hostname.replace(/^www\./, '');
@@ -63,12 +70,18 @@ function EngineAnswer({
         <h4>{ENGINE_NAMES[engine] ?? engine}</h4>
         <Badge variant={isHit ? 'accent' : undefined}>{isHit ? 'DJ 언급' : '미언급'}</Badge>
         {isHit && first.rank != null && <Badge>{`순위 ${first.rank}/3`}</Badge>}
-        {isHit && first.rec != null && <Badge>{`추천 강도 ${first.rec}/3`}</Badge>}
+        {isHit && first.rec != null && <Badge>{`추천 정도 ${first.rec}/3`}</Badge>}
         {isHit && first.sentiment && (
           <Badge>{SENTIMENT_NAMES[first.sentiment] ?? first.sentiment}</Badge>
         )}
+        {first.accuracy && <Badge>{ACCURACY_NAMES[first.accuracy] ?? first.accuracy}</Badge>}
         {first.brands.length > 0 && <Badge>{`경쟁 언급 ${first.brands.length}곳`}</Badge>}
       </header>
+      {first.judge_note && (
+        <p className={`answer-judge${first.accuracy === 'critical' ? ' answer-judge--alert' : ''}`}>
+          AI 채점: {first.judge_note}
+        </p>
+      )}
       {open ? (
         <div className="answer-text answer-rich" id={bodyId}>
           <Markdown

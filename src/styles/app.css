@@ -1505,3 +1505,36 @@ textarea.input {
 .block .block-subhead {
   margin-top: 32px;
 }
+
+/* ---- AI 채점 ---- */
+.judge-facts {
+  margin-top: 16px;
+  max-width: 46rem;
+}
+
+.judge-redo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: var(--text-sm);
+}
+
+.judge-progress {
+  margin-top: 16px;
+  max-width: 46rem;
+}
+
+.answer-judge {
+  margin-top: 8px;
+  border-left: 3px solid var(--line);
+  padding-left: 12px;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+
+.answer-judge--alert {
+  border-left-color: var(--seal);
+  color: var(--ink);
+}

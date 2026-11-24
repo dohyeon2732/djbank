@@ -38,6 +38,9 @@ function segment(
   const totalBrand = [...counts.values()].reduce((sum, v) => sum + v, 0);
   const totalCit = answers.reduce((sum, a) => sum + a.cites, 0);
   const ownCit = answers.reduce((sum, a) => sum + a.ownCites, 0);
+  /** 상품 사실과 비교한 답변, 어조를 채점한 답변. */
+  const checked = answers.filter((a) => a.accuracy != null);
+  const toned = answers.filter((a) => a.sentiment != null);
 
   return {
     wave,
@@ -50,12 +53,19 @@ function segment(
     k,
     n,
     rank_avg: average(answers.flatMap((a) => (a.rank == null ? [] : [a.rank]))),
-    // 추천 강도, 감성, 정확도, 치명 환각은 AI 채점 단계가 생기면 채웁니다.
-    rec_avg: null,
+    // 아래 넷은 AI 채점을 한 답변으로만 계산합니다. 채점한 답변이 없으면 null입니다.
+    rec_avg: average(answers.flatMap((a) => (a.rec == null ? [] : [a.rec]))),
     sov: totalBrand > 0 ? round((counts.get(ownBrand) ?? 0) / totalBrand) : null,
-    acc_rate: null,
-    critical: null,
-    sent_net: null,
+    acc_rate: checked.length > 0 ? round(checked.filter((a) => a.accuracy === 'none').length / checked.length) : null,
+    critical: checked.length > 0 ? checked.filter((a) => a.accuracy === 'critical').length : null,
+    sent_net:
+      toned.length > 0
+        ? round(
+            (toned.filter((a) => a.sentiment === 'positive').length -
+              toned.filter((a) => a.sentiment === 'negative').length) /
+              toned.length,
+          )
+        : null,
     own_cit: hasOwnDomains ? ownCit : null,
     total_cit: totalCit,
     own_share: hasOwnDomains && totalCit > 0 ? round(ownCit / totalCit) : null,

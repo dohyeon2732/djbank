@@ -66,6 +66,10 @@ export interface RawAnswer {
   brands: string[] | string;
   cites: number;
   excerpt: string | null;
+  /** AI 채점: 상품 사실과 비교한 결과. none, minor, critical. 확인하지 않았으면 null. */
+  accuracy?: string | null;
+  /** AI 채점: 그렇게 판단한 이유. */
+  judge_note?: string | null;
 }
 
 export interface Answer extends Omit<RawAnswer, 'mention' | 'brands'> {

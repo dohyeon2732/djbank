@@ -4,6 +4,8 @@ import type {
   EngineId,
   EngineTestResult,
   JobStatus,
+  JudgeResult,
+  JudgeTask,
   RunnerConfig,
   RunnerOverview,
 } from './types';
@@ -124,4 +126,13 @@ export const runner = {
   finish: (input: { wave: string; planned: number; config: RunnerConfig }) =>
     request<{ saved: number }>('POST', 'finish', input),
   discard: (wave: string) => request<RunnerOverview>('POST', 'discard', { wave }),
+
+  // AI 채점: DJ Bank가 나온 답변을 한 건씩 채점하고, 끝나면 집계에 반영합니다.
+  judgeList: (wave: string) => request<{ wave: string; tasks: JudgeTask[] }>('POST', 'judge-list', { wave }),
+  judge: (
+    input: { wave: string; qid: string; engine: EngineId; rep: number; config: RunnerConfig },
+    signal: AbortSignal,
+  ) => request<JudgeResult>('POST', 'judge', input, signal),
+  judgeFinish: (input: { wave: string; config: RunnerConfig }) =>
+    request<{ judged: number }>('POST', 'judge-finish', input),
 };
